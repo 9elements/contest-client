@@ -42,7 +42,7 @@ TestDescriptors:
                     label: SCP binary to target
                     parameters:
                         executable: [sh]
-                        args: ["-c", "scp -i {{ getPrivateKeyFile .ID }} /tmp/coreboot-{{ .ID }}/coreboot/coreboot-tiogapass.rom {{ getBmcUser .ID }}@{{ getBmcHost .ID }}:/tmp/coreboot-tiogapass-{{ .ID }}.rom"]
+                        args: ["-c", "scp -i {{ getPrivateKeyFile .ID }} /tmp/coreboot-{{ .ID }}/coreboot/coreboot-tiogapass.rom {{ getBmcUser .ID }}@{{ getBmcHost .ID }}:/mnt/data1/coreboot-tiogapass-{{ .ID }}.rom"]
                 -   name: sshcmd
                     label: Power off DUT
                     parameters:
@@ -60,7 +60,7 @@ TestDescriptors:
                         private_key_file: ["{{ getPrivateKeyFile .ID }}"]
                         host: ["{{ getBmcHost .ID }}"]
                         executable: [/usr/bin/fw-util]
-                        args: ["{{ getSlotToTest .ID }}", "--update", "--force", "bios", "/tmp/coreboot-tiogapass-{{ .ID }}.rom"]
+                        args: ["{{ getSlotToTest .ID }}", "--update", "--force", "bios", "/mnt/data1/coreboot-tiogapass-{{ .ID }}.rom"]
                         expect: ["bios succeeded"]
                         timeout: ["25m"]
                 -   name: sshcmd
@@ -114,7 +114,7 @@ TestDescriptors:
                         private_key_file: ["{{ getPrivateKeyFile .ID }}"]
                         host: ["{{ getBmcHost .ID }}"]
                         executable: [rm]
-                        args: ["-R", "-f", "/tmp/coreboot-tiogapass-{{ .ID }}.rom"]
+                        args: ["-R", "-f", "/mnt/data1/coreboot-tiogapass-{{ .ID }}.rom"]
                         timeout: ["2m"]
                 -   name: sshcmd
                     label: Power off Slot

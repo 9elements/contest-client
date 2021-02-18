@@ -30,7 +30,7 @@ TestDescriptors:
       parameters:
         args:
         - "-c"
-        - scp -i {{ getPrivateKeyFile .ID }} /root/contest/cmds/contest/assets/coreboot-deltalake-evt-dut-prov.rom {{ getBmcUser .ID }}@{{ getBmcHost .ID }}:/tmp/coreboot-deltalake-evt-{{ .ID }}.rom
+        - scp -i {{ getPrivateKeyFile .ID }} /root/contest/cmds/contest/assets/coreboot-deltalake-evt-dut-prov.rom {{ getBmcUser .ID }}@{{ getBmcHost .ID }}:/mnt/data1/coreboot-deltalake-evt-{{ .ID }}.rom
         executable:
         - sh
     - name: sshcmd
@@ -67,7 +67,7 @@ TestDescriptors:
         - sb
         - "--update"
         - bios
-        - "/tmp/coreboot-deltalake-evt-{{ .ID }}.rom"
+        - "/mnt/data1/coreboot-deltalake-evt-{{ .ID }}.rom"
         expect:
         - bios succeeded
         timeout:
@@ -111,6 +111,7 @@ TestDescriptors:
     FileURI: hosts.csv
     MinNumberDevices: 1
     MaxNumberDevices: 3
+    HostPrefixes: ["yv3-evt-slot"]
   TargetManagerReleaseParameters: {}
   TestFetcherName: literal
   TestFetcherFetchParameters:
@@ -130,7 +131,7 @@ TestDescriptors:
         args:
         - "-R"
         - "-f"
-        - "/tmp/coreboot-deltalake-evt-{{ .ID }}.rom"
+        - "/mnt/data1/coreboot-deltalake-evt-{{ .ID }}.rom"
         timeout:
         - 2m
     - name: sshcmd
