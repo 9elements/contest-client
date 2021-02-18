@@ -1,0 +1,31 @@
+JobName: Deltalake CPX-SP Boot Test (LinuxBoot)
+Runs: 3
+RunInterval: 3s
+Tags: [test, csv]
+TestDescriptors:
+    - TargetManagerName: csvfiletargetmanager
+      TargetManagerAcquireParameters:
+        FileURI: hosts.csv
+        Shuffle: true
+        MinNumberDevices: 1
+        MaxNumberDevices: 2
+      TargetManagerReleaseParameters:
+      TestFetcherName: literal
+      TestFetcherFetchParameters:
+          TestName: literal test
+          Steps:
+              - name: cmd
+                label: some label
+                parameters:
+                    executable: [echo]
+                    args: ["{{ getTty .ID }}"]
+                    emit_stdout: [true]
+                    emit_stderr: [true]
+Reporting:
+    RunReporters:
+        - name: TargetSuccess
+          parameters:
+              SuccessExpression: ">80%"
+        - name: noop
+    FinalReporters:
+        - name: noop
