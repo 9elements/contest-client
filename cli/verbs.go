@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory of this source tree.
 
-package main
+package cli
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -19,27 +20,35 @@ import (
 
 	"github.com/facebookincubator/contest/pkg/api"
 	"github.com/facebookincubator/contest/pkg/config"
-	"github.com/facebookincubator/contest/pkg/jobmanager"
+	"github.com/facebookincubator/contest/pkg/event"
+	"github.com/facebookincubator/contest/pkg/job"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/facebookincubator/contest/pkg/types"
-
-	flag "github.com/spf13/pflag"
 )
 
-func run(requestor string, transport transport.Transport) error {
-	verb := strings.ToLower(flag.Arg(0))
+func run(requestor string, transport transport.Transport, stdout io.Writer) error {
+	verb := strings.ToLower(flagSet.Arg(0))
 	if verb == "" {
-		fmt.Fprintf(flag.CommandLine.Output(), "Missing verb, see --help\n")
-		os.Exit(1)
+		return fmt.Errorf("missing verb, see --help")
 	}
 	var resp interface{}
 	var err error
 	switch verb {
 	case "start":
-		fmt.Fprintf(os.Stderr, "Reading from stdin...\n")
-		jobDesc, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("failed to read job descriptor: %v", err)
+		var jobDesc []byte
+		if flagSet.Arg(1) == "" {
+			fmt.Fprintf(os.Stderr, "Reading from stdin...\n")
+			jd, err := ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read job descriptor: %w", err)
+			}
+			jobDesc = jd
+		} else {
+			jd, err := ioutil.ReadFile(flagSet.Arg(1))
+			if err != nil {
+				return fmt.Errorf("failed to read job descriptor: %w", err)
+			}
+			jobDesc = jd
 		}
 
 		jobDescFormat := config.JobDescFormatJSON
@@ -69,7 +78,7 @@ func run(requestor string, transport transport.Transport) error {
 				return fmt.Errorf("cannot re-encode api.Respose object: %v", err)
 			}
 			indentedJSON := buffer.String()
-			fmt.Println(indentedJSON)
+			fmt.Fprintf(stdout, "%s", string(indentedJSON))
 
 			fmt.Fprintf(os.Stderr, "\nWaiting for job to complete...\n")
 			resp, err = wait(context.Background(), startResp.Data.JobID, jobWaitPoll, requestor, transport)
@@ -94,7 +103,7 @@ func run(requestor string, transport transport.Transport) error {
 			}
 		}
 	case "stop":
-		jobID, err := parseJob(flag.Arg(1))
+		jobID, err := parseJob(flagSet.Arg(1))
 		if err != nil {
 			return err
 		}
@@ -103,7 +112,7 @@ func run(requestor string, transport transport.Transport) error {
 			return err
 		}
 	case "status":
-		jobID, err := parseJob(flag.Arg(1))
+		jobID, err := parseJob(flagSet.Arg(1))
 		if err != nil {
 			return err
 		}
@@ -112,11 +121,24 @@ func run(requestor string, transport transport.Transport) error {
 			return err
 		}
 	case "retry":
-		jobID, err := parseJob(flag.Arg(1))
+		jobID, err := parseJob(flagSet.Arg(1))
 		if err != nil {
 			return err
 		}
 		resp, err = transport.Retry(context.Background(), requestor, jobID)
+		if err != nil {
+			return err
+		}
+	case "list":
+		var states []job.State
+		for _, sts := range *flagStates {
+			st, err := job.EventNameToJobState(event.Name(sts))
+			if err != nil {
+				return err
+			}
+			states = append(states, st)
+		}
+		resp, err = transport.List(context.Background(), requestor, states, *flagTags)
 		if err != nil {
 			return err
 		}
@@ -136,7 +158,7 @@ func run(requestor string, transport transport.Transport) error {
 	if err != nil {
 		return fmt.Errorf("cannot re-encode api.Respose object: %v", err)
 	}
-	fmt.Println(buffer.String())
+	stdout.Write(buffer.Bytes())
 	return nil
 }
 
@@ -153,7 +175,7 @@ func wait(ctx context.Context, jobID types.JobID, jobWaitPoll time.Duration, req
 
 		jobState := resp.Data.Status.State
 
-		for _, eventName := range jobmanager.JobCompletionEvents {
+		for _, eventName := range job.JobCompletionEvents {
 			if string(jobState) == string(eventName) {
 				return resp, nil
 			}
@@ -170,11 +192,11 @@ func parseJob(jobIDStr string) (types.JobID, error) {
 	var jobID types.JobID
 	jobIDint, err := strconv.Atoi(jobIDStr)
 	if err != nil {
-		return 0, fmt.Errorf("Invalid job ID: %s: %v", jobIDStr, err)
+		return 0, fmt.Errorf("invalid job ID: %s: %v", jobIDStr, err)
 	}
 	jobID = types.JobID(jobIDint)
 	if jobID <= 0 {
-		return 0, fmt.Errorf("Invalid job ID: %s: it must be positive", jobIDStr)
+		return 0, fmt.Errorf("invalid job ID: %s: it must be positive", jobIDStr)
 	}
 	return jobID, nil
 }
