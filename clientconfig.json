@@ -1,0 +1,30 @@
+{
+    "PreJobExecutionHooks": [
+        {
+            "Name": "...",
+            "Parameters": {
+                "URI": ""
+            }
+        },
+        {
+            "Name": "...",
+            "Parameters": {
+                "URI": ""
+            }
+        }
+    ],
+    "PostJobExecutionHooks": [
+        {
+            "Name": "...",
+            "Parameters": {
+                "URI": ""
+            }
+        },
+        {
+            "Name": "...",
+            "Parameters": {
+                "URI": ""
+            }
+        }
+    ]
+}
