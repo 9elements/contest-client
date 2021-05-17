@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/facebookincubator/contest/cmds/clients/contestcli/cli"
+	"github.com/9elements/contest-client/contestcli"
 )
 
 // Unauthenticated, unencrypted sample HTTP client for ConTest.
@@ -32,7 +32,7 @@ import (
 //   ./contestcli list -state JobStateFailed -tags foo,bar
 
 func main() {
-	if err := cli.CLIMain(os.Args[0], os.Args[1:], os.Stdout); err != nil {
+	if err := contestcli.CLIMain(os.Args[0], os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

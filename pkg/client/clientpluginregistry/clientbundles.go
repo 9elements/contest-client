@@ -14,12 +14,12 @@ func (r *ClientPluginRegistry) NewPreJobExecutionHookBundle(ctx xcontext.Context
 	if preHookDescriptor == nil {
 		return nil, fmt.Errorf("pre execution hook description is null")
 	}
-	preJobExecutionHook, err := r.NewPreJobExecutionHook(preHookDescriptor.PreJobExecutionHookName)
+	preJobExecutionHook, err := r.NewPreJobExecutionHook(preHookDescriptor.Name)
 	if err != nil {
-		return nil, fmt.Errorf("could not get the desired PreExecutionHook (%s): %v", preHookDescriptor.PreJobExecutionHookName, err)
+		return nil, fmt.Errorf("could not get the desired PreExecutionHook (%s): %v", preHookDescriptor.Name, err)
 	}
 	// FetchParameters
-	fp, err := preJobExecutionHook.ValidateParameters(preHookDescriptor.PreJobExecutionHookParameters)
+	fp, err := preJobExecutionHook.ValidateParameters(preHookDescriptor.Parameters)
 	if err != nil {
 		return nil, fmt.Errorf("could not validate PreExecutionHook fetch parameters: %v", err)
 	}
@@ -38,12 +38,12 @@ func (r *ClientPluginRegistry) NewPostJobExecutionHookBundle(ctx xcontext.Contex
 	if postHookDescriptor == nil {
 		return nil, fmt.Errorf("post execution hook description is null")
 	}
-	postJobExecutionHook, err := r.NewPostJobExecutionHook(postHookDescriptor.PostJobExecutionHookName)
+	postJobExecutionHook, err := r.NewPostJobExecutionHook(postHookDescriptor.Name)
 	if err != nil {
-		return nil, fmt.Errorf("could not get the desired PostExecutionHook (%s): %v", postHookDescriptor.PostJobExecutionHookName, err)
+		return nil, fmt.Errorf("could not get the desired PostExecutionHook (%s): %v", postHookDescriptor.Name, err)
 	}
 	// FetchParameters
-	fp, err := postJobExecutionHook.ValidateParameters(postHookDescriptor.PostJobExecutionHookParameters)
+	fp, err := postJobExecutionHook.ValidateParameters(postHookDescriptor.Parameters)
 	if err != nil {
 		return nil, fmt.Errorf("could not validate PostExecutionHook fetch parameters: %v", err)
 	}

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 )
@@ -36,14 +37,14 @@ type PreJobExecutionHookParameters map[string][]ExecutionHookParam
 type PostJobExecutionHookParameters map[string][]ExecutionHookParam
 type PreHookDescriptor struct {
 	// PreJobExecutionHook-related parameters
-	PreJobExecutionHookName       string
-	PreJobExecutionHookParameters json.RawMessage
+	Name       string
+	Parameters json.RawMessage
 }
 
 type PostHookDescriptor struct {
 	// PostJobExecutionHook-related parameters
-	PostJobExecutionHookName       string
-	PostJobExecutionHookParameters json.RawMessage
+	Name       string
+	Parameters json.RawMessage
 }
 
 // PreHookExecutionBundle bundles the selected PreExecutionHooks together with its parameters
@@ -58,28 +59,39 @@ type PostHookExecutionBundle struct {
 	Parameters            interface{}
 }
 
-// Validate performs sanity check on the PreHookDescriptor
-func (d *PreHookDescriptor) Validate() error {
-	if d.PreJobExecutionHookName == "" {
+// Validate performs sanity check on the ExecutionHookDescriptor
+func (d *ClientDescriptor) Validate() error {
+	if len(d.PreJobExecutionHooks) == 0 {
+		return errors.New("PreJobExecutionHook cannot be empty")
+	}
+	if len(d.PostJobExecutionHooks) == 0 {
+		return errors.New("PostJobExecutionHook cannot be empty")
+	}
+	return nil
+}
+
+// PreValidate performs sanity check on the PreExecutionHookContent
+func (d *PreHookDescriptor) PreValidate() error {
+	if d.Name == "" {
 		return errors.New("PreJobExecutionHook name cannot be empty")
 	}
 	return nil
 }
 
-// Validate performs sanity check on the PostHookDescriptor
-func (d *PostHookDescriptor) Validate() error {
-	if d.PostJobExecutionHookName == "" {
+// PostValidate performs sanity check on the PostExecutionHookContent
+func (d *PostHookDescriptor) PostValidate() error {
+	if d.Name == "" {
 		return errors.New("PostJobExecutionHook name cannot be empty")
 	}
 	return nil
 }
 
 type PreJobExecutionHooks interface {
-	Run([]byte) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
 
 type PostJobExecutionHooks interface {
-	Run([]byte) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }

@@ -1,18 +1,19 @@
 package clientplugins
 
 import (
-	"sync"
-
 	"github.com/9elements/contest-client/pkg/client"
-	"github.com/9elements/contest-client/pkg/clientpluginregistry"
+
+	"github.com/9elements/contest-client/pkg/client/clientpluginregistry"
 	"github.com/facebookincubator/contest/pkg/xcontext"
+
+	"github.com/9elements/contest-client/plugins/postexecutionhooks/pushtos3"
 )
 
 var PreExecutionHooks = []client.PreJobExecutionHookLoader{}
 
-var PostExecutionHooks = []client.PostJobExecutionHookLoader{}
-
-var testInitOnce sync.Once
+var PostExecutionHooks = []client.PostJobExecutionHookLoader{
+	pushtoS3.Load
+}
 
 // Init initializes the client plugin registry
 func Init(clientPluginRegistry *clientpluginregistry.ClientPluginRegistry, log xcontext.Logger) {
