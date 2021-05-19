@@ -26,25 +26,15 @@ const (
 )
 
 var (
-	flagSet       *flag.FlagSet
-	flagAddr      *string
-	flagRequestor *string
-	flagLogLevel  *string
-	flagWait      *bool
-	flagYAML      *bool
-	flagS3        *bool
-	flagStates    *[]string
-	flagTags      *[]string
+	flagSet    *flag.FlagSet
+	flagConfig *string
+	flagStates *[]string
+	flagTags   *[]string
 )
 
 func initFlags(cmd string) {
 	flagSet = flag.NewFlagSet(cmd, flag.ContinueOnError)
-	flagAddr = flagSet.StringP("addr", "a", "http://localhost:8080", "ConTest server [scheme://]host:port[/basepath] to connect to")
-	flagRequestor = flagSet.StringP("requestor", "r", defaultRequestor, "Identifier of the requestor of the API call")
-	flagWait = flagSet.BoolP("wait", "w", false, "After starting a job, wait for it to finish, and exit 0 only if it is successful")
-	flagYAML = flagSet.BoolP("yaml", "Y", true, "Parse job descriptor as YAML instead of JSON")
-	flagS3 = flag.BoolP("s3", "s", false, "Upload Job Result to S3 Bucket")
-	flagLogLevel = flagSet.String("logLevel", "debug", "A log level, possible values: debug, info, warning, error, panic, fatal")
+	flagConfig = flagSet.StringP("config", "c", "clientconfig.json", "Path to the configuration file that describes the client")
 
 	// Flags for the "list" command.
 	flagStates = flagSet.StringSlice("states", []string{}, "List of job states for the list command. A job must be in any of the specified states to match.")
@@ -88,7 +78,30 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		return err
 	}
 
-	logLevel, err := logger.ParseLogLevel(*flagLogLevel)
+	//Open the configfile
+	configFile, err := os.Open(*flagConfig)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer configFile.Close()
+	//parse and decode the json file
+	configDescription, _ := ioutil.ReadAll(configFile)
+	var cd client.ClientDescriptor
+	if err := json.Unmarshal([]byte(configDescription), &cd); err != nil {
+		fmt.Printf("unable to decode the config file with err: %v\n", err)
+		fmt.Printf("content is: %+v\n", cd)
+	}
+	if *cd.Flags.FlagAddr == "" {
+		*cd.Flags.FlagAddr = "http://localhost:8080"
+	}
+	if *cd.Flags.FlagRequestor == "" {
+		*cd.Flags.FlagRequestor = "9e-contestcli"
+	}
+	if *cd.Flags.FlagLogLevel == "" {
+		*cd.Flags.FlagLogLevel = "debug"
+	}
+
+	logLevel, err := logger.ParseLogLevel(*cd.Flags.FlagLogLevel)
 	if err != nil {
 		return err
 	}
@@ -100,19 +113,6 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 	clientPluginRegistry := clientpluginregistry.NewClientPluginRegistry(ctx)
 	clientplugins.Init(clientPluginRegistry, ctx.Logger())
 
-	//Open the configfile
-	configFile, err := os.Open("clientconfig.json")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer configFile.Close()
-	//parse and decode the json file
-	configDescription, _ := ioutil.ReadAll(configFile)
-	var cd client.ClientDescriptor
-	if err := json.Unmarshal([]byte(configDescription), &cd); err != nil {
-		fmt.Printf("unable to decode the config file\n")
-	}
-
 	if err := cd.Validate(); err != nil {
 		return err
 	}
@@ -122,16 +122,14 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		}
 		bundlePreExecutionHook, err := clientPluginRegistry.NewPreJobExecutionHookBundle(ctx, eh)
 		if err != nil {
-			fmt.Errorf("could not create the bundle:\n", err)
 			return err
 		}
 		if err := doPreJobExecutionHooks(ctx, bundlePreExecutionHook); err != nil {
-			fmt.Errorf("could not execute the plugin:\n", err)
 			return err
 		}
 	}
 
-	if err := run(*flagRequestor, &http.HTTP{Addr: *flagAddr}, stdout); err != nil {
+	if err := run(cd.Flags, &http.HTTP{Addr: *cd.Flags.FlagAddr}, stdout); err != nil {
 		return err
 	}
 

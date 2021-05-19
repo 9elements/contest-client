@@ -18,6 +18,7 @@ type PostJobExecutionHookLoader func() (string, PostJobExecutionHooksFactory)
 // ClientDescriptor models the deserialized version of the JSON text given as
 // input to the client at start.
 type ClientDescriptor struct {
+	Flags                 Flags
 	PreJobExecutionHooks  []*PreHookDescriptor
 	PostJobExecutionHooks []*PostHookDescriptor
 }
@@ -35,6 +36,16 @@ type ExecutionHookParam struct {
 // according to the client descriptor
 type PreJobExecutionHookParameters map[string][]ExecutionHookParam
 type PostJobExecutionHookParameters map[string][]ExecutionHookParam
+
+type Flags struct {
+	// Flag-related parameters
+	FlagAddr      *string //ConTest server [scheme://]host:port[/basepath] to connect to
+	FlagRequestor *string //Identifier of the requestor of the API call
+	FlagWait      *bool   //After starting a job, wait for it to finish, and exit 0 only if it is successful
+	FlagYAML      *bool   //JSON or YAML
+	FlagS3        *bool   //Upload Job Result to S3 Bucket
+	FlagLogLevel  *string //possible values: debug, info, warning, error, panic, fatal
+}
 type PreHookDescriptor struct {
 	// PreJobExecutionHook-related parameters
 	Name       string

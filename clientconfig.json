@@ -1,13 +1,23 @@
 {
+    "Flags": 
+        {
+            "flagAddr": "",
+            "flagRequestor": "",
+            "flagWait": false,
+            "flagYAML": false,
+            "flagS3": false,
+            "flagLogLevel": ""                    
+        }
+    ,
     "PreJobExecutionHooks": [
         {
-            "Name": "...",
+            "Name": "",
             "Parameters": {
                 "URI": ""
             }
         },
         {
-            "Name": "...",
+            "Name": "",
             "Parameters": {
                 "URI": ""
             }
@@ -15,13 +25,13 @@
     ],
     "PostJobExecutionHooks": [
         {
-            "Name": "...",
+            "Name": "",
             "Parameters": {
                 "URI": ""
             }
         },
         {
-            "Name": "...",
+            "Name": "",
             "Parameters": {
                 "URI": ""
             }

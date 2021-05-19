@@ -6,13 +6,16 @@ import (
 	"github.com/9elements/contest-client/pkg/client/clientpluginregistry"
 	"github.com/facebookincubator/contest/pkg/xcontext"
 
-	"github.com/9elements/contest-client/plugins/postexecutionhooks/pushtos3"
+	"github.com/9elements/contest-client/plugins/postjobexecutionhooks/pushtoS3"
+	"github.com/9elements/contest-client/plugins/prejobexecutionhooks/test"
 )
 
-var PreExecutionHooks = []client.PreJobExecutionHookLoader{}
+var PreExecutionHooks = []client.PreJobExecutionHookLoader{
+	test.Load,
+}
 
 var PostExecutionHooks = []client.PostJobExecutionHookLoader{
-	pushtoS3.Load
+	pushtoS3.Load,
 }
 
 // Init initializes the client plugin registry

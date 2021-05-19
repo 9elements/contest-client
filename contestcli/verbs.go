@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/9elements/contest-client/pkg/client"
 	"github.com/facebookincubator/contest/pkg/api"
 	"github.com/facebookincubator/contest/pkg/config"
 	"github.com/facebookincubator/contest/pkg/event"
@@ -21,7 +22,7 @@ import (
 	"github.com/facebookincubator/contest/pkg/types"
 )
 
-func run(requestor string, transport transport.Transport, stdout io.Writer) error {
+func run(flags client.Flags, transport transport.Transport, stdout io.Writer) error {
 	verb := strings.ToLower(flagSet.Arg(0))
 	if verb == "" {
 		return fmt.Errorf("missing verb, see --help")
@@ -47,7 +48,7 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 		}
 
 		jobDescFormat := config.JobDescFormatJSON
-		if *flagYAML {
+		if *flags.FlagYAML {
 			jobDescFormat = config.JobDescFormatYAML
 		}
 		jobDescJSON, err := config.ParseJobDescriptor(jobDesc, jobDescFormat)
@@ -55,14 +56,14 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 			return fmt.Errorf("failed to parse job descriptor: %w", err)
 		}
 
-		startResp, err := transport.Start(context.Background(), requestor, string(jobDescJSON))
+		startResp, err := transport.Start(context.Background(), *flags.FlagRequestor, string(jobDescJSON))
 		if err != nil {
 			return err
 		}
 		resp = startResp
 
 		// handle wait
-		if *flagWait && startResp.Data.JobID != 0 {
+		if *flags.FlagWait && startResp.Data.JobID != 0 {
 			// print immediately if wait is used
 			buffer := &bytes.Buffer{}
 			encoder := json.NewEncoder(buffer)
@@ -76,9 +77,9 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 			fmt.Fprintf(stdout, "%s", string(indentedJSON))
 
 			fmt.Fprintf(os.Stderr, "\nWaiting for job to complete...\n")
-			resp, err = wait(context.Background(), startResp.Data.JobID, jobWaitPoll, requestor, transport)
+			resp, err = wait(context.Background(), startResp.Data.JobID, jobWaitPoll, *flags.FlagRequestor, transport)
 
-			if *flagS3 {
+			if *flags.FlagS3 {
 				buffer := &bytes.Buffer{}
 				encoder := json.NewEncoder(buffer)
 				encoder.SetEscapeHTML(false)
@@ -102,7 +103,7 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 		if err != nil {
 			return err
 		}
-		resp, err = transport.Stop(context.Background(), requestor, types.JobID(jobID))
+		resp, err = transport.Stop(context.Background(), *flags.FlagRequestor, types.JobID(jobID))
 		if err != nil {
 			return err
 		}
@@ -111,7 +112,7 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 		if err != nil {
 			return err
 		}
-		resp, err = transport.Status(context.Background(), requestor, jobID)
+		resp, err = transport.Status(context.Background(), *flags.FlagRequestor, jobID)
 		if err != nil {
 			return err
 		}
@@ -120,7 +121,7 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 		if err != nil {
 			return err
 		}
-		resp, err = transport.Retry(context.Background(), requestor, jobID)
+		resp, err = transport.Retry(context.Background(), *flags.FlagRequestor, jobID)
 		if err != nil {
 			return err
 		}
@@ -133,12 +134,12 @@ func run(requestor string, transport transport.Transport, stdout io.Writer) erro
 			}
 			states = append(states, st)
 		}
-		resp, err = transport.List(context.Background(), requestor, states, *flagTags)
+		resp, err = transport.List(context.Background(), *flags.FlagRequestor, states, *flagTags)
 		if err != nil {
 			return err
 		}
 	case "version":
-		resp, err = transport.Version(context.Background(), requestor)
+		resp, err = transport.Version(context.Background(), *flags.FlagRequestor)
 		if err != nil {
 			return err
 		}
