@@ -7,11 +7,11 @@ import (
 	"github.com/facebookincubator/contest/pkg/xcontext"
 
 	"github.com/9elements/contest-client/plugins/postjobexecutionhooks/pushtoS3"
-	"github.com/9elements/contest-client/plugins/prejobexecutionhooks/test"
+	"github.com/9elements/contest-client/plugins/prejobexecutionhooks/webhook"
 )
 
 var PreExecutionHooks = []client.PreJobExecutionHookLoader{
-	test.Load,
+	webhook.Load,
 }
 
 var PostExecutionHooks = []client.PostJobExecutionHookLoader{

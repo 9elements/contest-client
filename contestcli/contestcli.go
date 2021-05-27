@@ -91,6 +91,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		fmt.Printf("unable to decode the config file with err: %v\n", err)
 		fmt.Printf("content is: %+v\n", cd)
 	}
+	//Setting defaults to empty config entries
 	if *cd.Flags.FlagAddr == "" {
 		*cd.Flags.FlagAddr = "http://localhost:8080"
 	}
@@ -124,7 +125,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := doPreJobExecutionHooks(ctx, bundlePreExecutionHook); err != nil {
+		if _, err := bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}); err != nil {
 			return err
 		}
 	}
@@ -141,7 +142,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := doPostJobExecutionHooks(ctx, bundlePostExecutionHook); err != nil {
+		if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters); err != nil {
 			return err
 		}
 	}

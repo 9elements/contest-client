@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
+	"github.com/facebookincubator/contest/pkg/transport"
 )
 
 // JobExecutionHookFactory is a type representing a function which builds a JobExecutionHook object
@@ -98,7 +100,7 @@ func (d *PostHookDescriptor) PostValidate() error {
 }
 
 type PreJobExecutionHooks interface {
-	Run(ctx context.Context, parameters interface{}) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
 
