@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 
 	"github.com/9elements/contest-client/pkg/client"
+	"github.com/Navops/yaml"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/google/go-github/github"
-	"gopkg.in/yaml.v2"
 )
 
 var globalctx context.Context
@@ -47,8 +47,14 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	switch e := event.(type) { //switch to handle the different eventtypes of the webhook
 	case *github.PullRequestEvent:
 		fmt.Printf("successful received pullrequestevent event\n")
-		fmt.Printf("event: %+v\n", *e.PullRequest.URL)
-		OpenAndWriteJobDescriptor(globalctx, globalcd, globaltransport, *e.PullRequest.URL) //call to write content of the webhook into the jobDesc template
+		githubRepoURL := *e.PullRequest.Head.Repo.HTMLURL
+		githubHeadBranch := *e.PullRequest.Head.Ref
+		fmt.Printf("event: %+v\n", *e.PullRequest.Head.Repo.HTMLURL)
+		fmt.Printf("event: %+v\n", *e.PullRequest.Head.Ref)
+		//if e.PullRequest.MergedAt != nil { //if merged
+		OpenAndWriteJobDescriptor(globalctx, globalcd, globaltransport, githubRepoURL, githubHeadBranch) //call to write content of the webhook into the jobDesc template
+		//}
+
 	default:
 		log.Printf("unknown event type %s %s\n", github.WebHookType(r), e)
 		return
@@ -56,7 +62,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 //read the specific template, change the content and write it back to the target descriptor file
-func OpenAndWriteJobDescriptor(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, pullrequest string) {
+func OpenAndWriteJobDescriptor(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, githubRepoURL string, githubHeadBranch string) {
 	var resp interface{}
 	for i := 0; i < len(Targettemplates); i++ {
 		//Open the configfile
@@ -69,14 +75,14 @@ func OpenAndWriteJobDescriptor(ctx context.Context, cd client.ClientDescriptor, 
 			continue
 		}
 		//adapt the jobDescriptor based on the pullrequest
-		jobDesc, err := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, pullrequest)
+		jobDesc, err := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, githubRepoURL, githubHeadBranch)
 		if err != nil {
 			fmt.Printf("could not change the job template: %+v\n", err)
 		}
 		//kick off the generated Job
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
-			fmt.Printf("could not send the Job with the jobDesc: %s", Targettemplates[i])
+			fmt.Printf("could not send the Job with the jobDesc: %s\n", Targettemplates[i])
 		}
 		resp = startResp
 		_ = resp
@@ -84,18 +90,48 @@ func OpenAndWriteJobDescriptor(ctx context.Context, cd client.ClientDescriptor, 
 }
 
 //unmarshal the data from the template file then change the specific value and marshal it back to specific format
-func ChangeJobDescriptor(data []byte, YAML bool, pullrequest string) ([]byte, error) {
-	var (
-		jobDesc = make(map[string]interface{})
-	)
+func ChangeJobDescriptor(data []byte, YAML bool, githubRepoURL string, githubHeadBranch string) ([]byte, error) {
+	var jobDesc map[string]interface{}
+
 	if !YAML { //check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
 		if err := json.Unmarshal(data, &jobDesc); err != nil {
 			return nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
 		}
-		for m, n := range jobDesc {
-			if m == "JobName" {
-				n = pullrequest
-				jobDesc[m] = n
+		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else {
+			switch val := steps.(type) {
+			case []interface{}:
+				for _, v := range val {
+					switch val := v.(type) {
+					case map[string]interface{}:
+						for k, v := range val {
+							if k == "label" && v == "Cloning coreboot" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[0] = "clone --branch"
+											args[1] = githubHeadBranch
+											args[2] = githubRepoURL
+										}
+									}
+								default:
+									fmt.Println("JSON File has wrong format")
+								}
+							}
+						}
+					default:
+						fmt.Println("JSON File has wrong format")
+					}
+				}
+			default:
+				fmt.Println("JSON File has wrong format")
 			}
 		}
 		// marshal the jobDescriptor back to JSON format
@@ -108,10 +144,41 @@ func ChangeJobDescriptor(data []byte, YAML bool, pullrequest string) ([]byte, er
 		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
 			return nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
 		}
-		for m, n := range jobDesc {
-			if m == "JobName" {
-				n = pullrequest
-				jobDesc[m] = n
+		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else {
+			switch val := steps.(type) {
+			case []interface{}:
+				for _, v := range val {
+					switch val := v.(type) {
+					case map[string]interface{}:
+						for k, v := range val {
+							if k == "label" && v == "Cloning coreboot" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[0] = "clone --branch"
+											args[1] = githubHeadBranch
+											args[2] = githubRepoURL
+										}
+									}
+								default:
+									fmt.Println("YAML File has wrong format")
+								}
+							}
+						}
+					default:
+						fmt.Println("YAML File has wrong format")
+					}
+				}
+			default:
+				fmt.Println("YAML File has wrong format")
 			}
 		}
 		// marshal the jobDescriptor back to YAML format
