@@ -32,9 +32,6 @@ func (n *Webhook) ValidateParameters(params []byte) (interface{}, error) {
 	if err := json.Unmarshal(params, &Wp); err != nil {
 		return nil, fmt.Errorf("could not validate webhook parameters")
 	}
-	if len(Wp.Templates) == 0 {
-		return nil, fmt.Errorf("the template parameter cannot be zero")
-	}
 	for m, n := range Wp.Templates {
 		Targettemplates[m] = n
 	}
@@ -47,10 +44,10 @@ func (n *Webhook) Name() string {
 }
 
 // RunReport calculates the report to be associated with a job run.
-func (n *Webhook) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport) (interface{}, error) {
+func (n *Webhook) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, webhookData []string) (interface{}, error) {
 	log.Println("starting the webhook plugin")
-	startWebhook(ctx, cd, transport)
-	return "closed webhook", nil
+	var jobIDs []int = OpenAndWriteJobDescriptor(ctx, cd, transport, webhookData)
+	return jobIDs, nil
 }
 
 // New builds a new webhook

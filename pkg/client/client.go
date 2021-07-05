@@ -41,12 +41,13 @@ type PostJobExecutionHookParameters map[string][]ExecutionHookParam
 
 type Flags struct {
 	// Flag-related parameters
-	FlagAddr      *string //ConTest server [scheme://]host:port[/basepath] to connect to
-	FlagRequestor *string //Identifier of the requestor of the API call
-	FlagWait      *bool   //After starting a job, wait for it to finish, and exit 0 only if it is successful
-	FlagYAML      *bool   //JSON or YAML
-	FlagS3        *bool   //Upload Job Result to S3 Bucket
-	FlagLogLevel  *string //possible values: debug, info, warning, error, panic, fatal
+	FlagAddr        *string   //ConTest server [scheme://]host:port[/basepath] to connect to
+	FlagRequestor   *string   //Identifier of the requestor of the API call
+	FlagWait        *bool     //After starting a job, wait for it to finish, and exit 0 only if it is successful
+	FlagYAML        *bool     //JSON or YAML
+	FlagS3          *bool     //Upload Job Result to S3 Bucket
+	FlagLogLevel    *string   //possible values: debug, info, warning, error, panic, fatal
+	FlagJobTemplate []*string //filenames to the job templates, no default
 }
 type PreHookDescriptor struct {
 	// PreJobExecutionHook-related parameters
@@ -100,7 +101,7 @@ func (d *PostHookDescriptor) PostValidate() error {
 }
 
 type PreJobExecutionHooks interface {
-	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport, webhookData []string) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
 
