@@ -4,20 +4,16 @@
             "flagAddr": "",
             "flagRequestor": "",
             "flagWait": false,
-            "flagYAML": false,
+            "flagYAML": true,
             "flagS3": false,
-            "flagLogLevel": ""                    
+            "flagjobwaitpoll" : 60,
+            "flagLogLevel": "",
+            "flagJobTemplate": ["deltalake-coreboot-example_qemu.yaml"]                    
         }
     ,
     "PreJobExecutionHooks": [
         {
-            "Name": "",
-            "Parameters": {
-                "URI": ""
-            }
-        },
-        {
-            "Name": "",
+            "Name": "webhook",
             "Parameters": {
                 "URI": ""
             }
@@ -25,13 +21,7 @@
     ],
     "PostJobExecutionHooks": [
         {
-            "Name": "",
-            "Parameters": {
-                "URI": ""
-            }
-        },
-        {
-            "Name": "",
+            "Name": "pushtoS3",
             "Parameters": {
                 "URI": ""
             }

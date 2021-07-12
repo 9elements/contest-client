@@ -46,6 +46,7 @@ type Flags struct {
 	FlagWait        *bool     //After starting a job, wait for it to finish, and exit 0 only if it is successful
 	FlagYAML        *bool     //JSON or YAML
 	FlagS3          *bool     //Upload Job Result to S3 Bucket
+	FlagjobWaitPoll *int      //Time in seconds for the interval requesting the job status
 	FlagLogLevel    *string   //possible values: debug, info, warning, error, panic, fatal
 	FlagJobTemplate []*string //filenames to the job templates, no default
 }
@@ -106,6 +107,6 @@ type PreJobExecutionHooks interface {
 }
 
 type PostJobExecutionHooks interface {
-	Run(ctx context.Context, parameters interface{}) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport, rundata map[int][2]string) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }

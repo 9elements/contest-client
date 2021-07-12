@@ -1,0 +1,99 @@
+JobName: Deltalake Firmware Testing
+Runs: 1
+RunInterval: 60s
+Tags: ["ocp", "deltalake", "csv"]
+TestDescriptors:
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters:
+            FileURI: hosts.csv
+            Shuffle: true
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Build and Boot coreboot
+            Steps:
+                -   name: cmd
+                    label: Cloning coreboot
+                    parameters:
+                        executable: [git]
+                        args: ["clone","https://github.com/coreboot/coreboot", "/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: Working on the right commit
+                    parameters:
+                        executable: [git]
+                        args: ["reset", "--hard", "SHA"]
+                        dir: ["/tmp/coreboot-{{ .ID }}"]
+                -   name: cmd
+                    label: Cloning all assets
+                    parameters:
+                        executable: [git]
+                        args: ["clone","https://github.com/9elements/contest-job-assets", "/tmp/assets-{{ .ID }}/"]
+                -   name: cmd
+                    label: Config into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-{{ .ID }}/configs/config_qemu", ".config"]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: uroot into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-{{ .ID }}/initramfs/initramfs.linux_amd64.cpio", "initramfs.linux_amd64.cpio"]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: qemu script into folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-{{ .ID }}/qemuscript.sh", "qemuscript.sh"]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: Building the toolchain
+                    parameters:
+                        executable: [make]
+                        args: ["crossgcc-i386","CPUS=16"]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]
+                        expect: ["You can now run IASL ACPI compiler from"]
+                -   name: cmd
+                    label: Build coreboot
+                    parameters:
+                        executable: [make]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: emulate coreboot
+                    parameters:
+                        executable: [sh]
+                        args: ["qemuscript.sh"]
+                        dir: ["/tmp/coreboot-{{ .ID }}/"]   
+                        expect: ["Jumping to boot code"]
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters: 
+            FileURI: hosts.csv
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Cleanup
+            Steps:
+                -   name: cmd
+                    label: Delete local Files coreboot
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/coreboot-{{ .ID }}/"]
+                -   name: cmd
+                    label: Delete local Files assets
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/assets-{{ .ID }}/"]
+Reporting:
+    RunReporters:
+        -   name: TargetSuccess
+            parameters:
+                SuccessExpression: "=100%"
+        -   name: PostDone
+            parameters:
+                ApiURI: "http://localhost:3005/updatejobstatus/"

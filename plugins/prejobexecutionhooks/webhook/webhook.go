@@ -45,9 +45,8 @@ func (n *Webhook) Name() string {
 
 // RunReport calculates the report to be associated with a job run.
 func (n *Webhook) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, webhookData []string) (interface{}, error) {
-	log.Println("starting the webhook plugin")
-	var jobIDs []int = OpenAndWriteJobDescriptor(ctx, cd, transport, webhookData)
-	return jobIDs, nil
+	log.Println("webhook plugin did nothing")
+	return nil, nil
 }
 
 // New builds a new webhook

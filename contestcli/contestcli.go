@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"time"
 
 	"github.com/9elements/contest-client/pkg/client"
 	"github.com/9elements/contest-client/pkg/client/clientpluginregistry"
@@ -18,11 +17,6 @@ import (
 	"github.com/facebookincubator/contest/pkg/xcontext/logger"
 
 	flag "github.com/spf13/pflag"
-)
-
-const (
-	defaultRequestor = "9e-contestcli"
-	jobWaitPoll      = 30 * time.Second
 )
 
 var (
@@ -117,34 +111,43 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 	if err := cd.Validate(); err != nil {
 		return err
 	}
-	for _, eh := range cd.PreJobExecutionHooks {
-		if err := eh.PreValidate(); err != nil {
-			return err
+	//creating a channel
+	webhookData := make(chan []string, 10)
+	//starting go routine
+	go webhook(webhookData)
+
+	for nextWebhookData := range webhookData {
+		for _, eh := range cd.PreJobExecutionHooks {
+			if err := eh.PreValidate(); err != nil {
+				return err
+			}
+			bundlePreExecutionHook, err := clientPluginRegistry.NewPreJobExecutionHookBundle(ctx, eh)
+			if err != nil {
+				return err
+			}
+			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, nextWebhookData); err != nil {
+				return err
+			}
 		}
-		bundlePreExecutionHook, err := clientPluginRegistry.NewPreJobExecutionHookBundle(ctx, eh)
+		var rundata map[int][2]string
+		rundata, err := run(ctx, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, stdout, nextWebhookData)
 		if err != nil {
-			return err
+			return nil
 		}
-		if _, err := bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}); err != nil {
-			return err
+
+		for _, eh := range cd.PostJobExecutionHooks {
+			if err := eh.PostValidate(); err != nil {
+				return err
+			}
+			bundlePostExecutionHook, err := clientPluginRegistry.NewPostJobExecutionHookBundle(ctx, eh)
+			if err != nil {
+				return err
+			}
+			if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, rundata); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err := run(cd.Flags, &http.HTTP{Addr: *cd.Flags.FlagAddr}, stdout); err != nil {
-		return err
-	}
-
-	for _, eh := range cd.PostJobExecutionHooks {
-		if err := eh.PostValidate(); err != nil {
-			return err
-		}
-		bundlePostExecutionHook, err := clientPluginRegistry.NewPostJobExecutionHookBundle(ctx, eh)
-		if err != nil {
-			return err
-		}
-		if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters); err != nil {
-			return err
-		}
-	}
 	return nil
 }

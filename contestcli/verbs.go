@@ -8,176 +8,199 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
+	"log"
+	"net/http"
+	"path/filepath"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/9elements/contest-client/pkg/client"
-	"github.com/facebookincubator/contest/pkg/api"
-	"github.com/facebookincubator/contest/pkg/config"
-	"github.com/facebookincubator/contest/pkg/event"
-	"github.com/facebookincubator/contest/pkg/job"
+	githubAPI "github.com/9elements/contest-client/pkg/client/github"
+	"github.com/Navops/yaml"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/facebookincubator/contest/pkg/types"
 )
 
-func run(flags client.Flags, transport transport.Transport, stdout io.Writer) error {
-	verb := strings.ToLower(flagSet.Arg(0))
-	if verb == "" {
-		return fmt.Errorf("missing verb, see --help")
-	}
-	var resp interface{}
-	var err error
-	switch verb {
-	case "start":
-		var jobDesc []byte
-		if flagSet.Arg(1) == "" {
-			fmt.Fprintf(os.Stderr, "Reading from stdin...\n")
-			jd, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return fmt.Errorf("failed to read job descriptor: %w", err)
-			}
-			jobDesc = jd
-		} else {
-			jd, err := ioutil.ReadFile(flagSet.Arg(1))
-			if err != nil {
-				return fmt.Errorf("failed to read job descriptor: %w", err)
-			}
-			jobDesc = jd
-		}
+func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer, webhookData []string) (map[int][2]string, error) {
 
-		jobDescFormat := config.JobDescFormatJSON
-		if *flags.FlagYAML {
-			jobDescFormat = config.JobDescFormatYAML
-		}
-		jobDescJSON, err := config.ParseJobDescriptor(jobDesc, jobDescFormat)
-		if err != nil {
-			return fmt.Errorf("failed to parse job descriptor: %w", err)
-		}
+	jobs := make(map[int][2]string, len(cd.Flags.FlagJobTemplate))
 
-		startResp, err := transport.Start(context.Background(), *flags.FlagRequestor, string(jobDescJSON))
+	//iterate over all JobTemplates that are defined in the clientconfig.json
+	for i := 0; i < len(cd.Flags.FlagJobTemplate); i++ {
+		//Open the configfile
+		filepath, _ := filepath.Abs("descriptors/")
+		filepathtemplate := filepath + "/" + *cd.Flags.FlagJobTemplate[i]
+		//parse and decode the json/yaml file
+		templateDescription, err := ioutil.ReadFile(filepathtemplate)
 		if err != nil {
-			return err
+			log.Printf("could not parse the jobtemplate: %s\n", err)
 		}
-		resp = startResp
+		//Updating the github status to pending
+		res := githubAPI.EditGithubStatus(ctx, "pending", "http://someurl.com", *cd.Flags.FlagJobTemplate[i], webhookData[0])
+		if res != nil {
+			log.Printf("could not change the github status: %s\n", res)
+		}
+		//adapt the jobDescriptor based on the pullrequest
+		jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
+		if errorr != nil {
+			fmt.Printf("could not change the job template: %+v\n", err)
+		}
+		//kick off the generated Job
+		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
+		if err != nil {
+			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
+		}
+		if int(startResp.Data.JobID) == 0 {
+			fmt.Printf("The Job could not executed. Server returned JobID 0! \n") //TODO: ERROR HANDLING
+		}
+		var jobNameSha [2]string
+		jobNameSha[0] = *cd.Flags.FlagJobTemplate[i]
+		jobNameSha[1] = webhookData[0]
+		jobs[int(startResp.Data.JobID)] = jobNameSha
 
-		// handle wait
-		if *flags.FlagWait && startResp.Data.JobID != 0 {
-			// print immediately if wait is used
-			buffer := &bytes.Buffer{}
-			encoder := json.NewEncoder(buffer)
-			encoder.SetEscapeHTML(false)
-			encoder.SetIndent("", " ")
-			err = encoder.Encode(startResp)
-			if err != nil {
-				return fmt.Errorf("cannot re-encode api.Respose object: %v", err)
-			}
-			indentedJSON := buffer.String()
-			fmt.Fprintf(stdout, "%s", string(indentedJSON))
+		//Create Json Body for API Request to set a status for the started Job
+		data := map[string]interface{}{
+			"ID":     startResp.Data.JobID,
+			"Status": false,
+		}
+		json_data, err := json.Marshal(data) //Marshal that data
+		if err != nil {
+			fmt.Println("Could not parse data to json format.")
+		}
+		resp, err := http.Post("http://localhost:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data)) //HTTP Post all to the API
 
-			fmt.Fprintf(os.Stderr, "\nWaiting for job to complete...\n")
-			resp, err = wait(context.Background(), startResp.Data.JobID, jobWaitPoll, *flags.FlagRequestor, transport)
-
-			if *flags.FlagS3 {
-				buffer := &bytes.Buffer{}
-				encoder := json.NewEncoder(buffer)
-				encoder.SetEscapeHTML(false)
-				encoder.SetIndent("", " ")
-				err = encoder.Encode(resp)
-				if err != nil {
-					return fmt.Errorf("cannot re-encode api.Respose object: %v", err)
-				}
-				err = pushResultsToS3(startResp.Data.JobID, buffer.String())
-				if err != nil {
-					return err
-				}
-			}
-
-			if err != nil {
-				return err
-			}
-		}
-	case "stop":
-		jobID, err := parseJob(flagSet.Arg(1))
 		if err != nil {
-			return err
-		}
-		resp, err = transport.Stop(context.Background(), *flags.FlagRequestor, types.JobID(jobID))
-		if err != nil {
-			return err
-		}
-	case "status":
-		jobID, err := parseJob(flagSet.Arg(1))
-		if err != nil {
-			return err
-		}
-		resp, err = transport.Status(context.Background(), *flags.FlagRequestor, jobID)
-		if err != nil {
-			return err
-		}
-	case "retry":
-		jobID, err := parseJob(flagSet.Arg(1))
-		if err != nil {
-			return err
-		}
-		resp, err = transport.Retry(context.Background(), *flags.FlagRequestor, jobID)
-		if err != nil {
-			return err
-		}
-	case "list":
-		var states []job.State
-		for _, sts := range *flagStates {
-			st, err := job.EventNameToJobState(event.Name(sts))
-			if err != nil {
-				return err
-			}
-			states = append(states, st)
-		}
-		resp, err = transport.List(context.Background(), *flags.FlagRequestor, states, *flagTags)
-		if err != nil {
-			return err
-		}
-	case "version":
-		resp, err = transport.Version(context.Background(), *flags.FlagRequestor)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("invalid verb: '%s'", verb)
-	}
-	buffer := &bytes.Buffer{}
-	encoder := json.NewEncoder(buffer)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", " ")
-	err = encoder.Encode(resp)
-	if err != nil {
-		return fmt.Errorf("cannot re-encode api.Respose object: %v", err)
-	}
-	stdout.Write(buffer.Bytes())
-	return nil
-}
-
-func wait(ctx context.Context, jobID types.JobID, jobWaitPoll time.Duration, requestor string, transport transport.Transport) (*api.StatusResponse, error) {
-	// keep polling for status till job is completed, used when -wait is set
-	for {
-		resp, err := transport.Status(context.Background(), requestor, jobID)
-		if err != nil {
+			fmt.Println("Could not post data to API.")
 			return nil, err
 		}
-		if resp.Err != nil {
-			return nil, fmt.Errorf("server responded with an error: %s", resp.Err)
+		if resp.StatusCode != 200 {
+			fmt.Println("The HTTP Post responded a statuscode != 200")
+			return nil, err
 		}
+	}
+	return jobs, nil
+}
 
-		jobState := resp.Data.Status.State
+//unmarshal the data from the template file then change the specific value and marshal it back to specific format
+func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, error) {
+	var jobDesc map[string]interface{}
 
-		for _, eventName := range job.JobCompletionEvents {
-			if string(jobState) == string(eventName) {
-				return resp, nil
+	if !YAML { //check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
+		if err := json.Unmarshal(data, &jobDesc); err != nil {
+			return nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
+		}
+		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
+			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+		} else {
+			switch val := steps.(type) {
+			case []interface{}:
+				for _, v := range val {
+					switch val := v.(type) {
+					case map[string]interface{}:
+						for k, v := range val {
+							if k == "label" && v == "Cloning coreboot" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[1] = webhookData[1] //Repository URL
+										}
+									}
+								default:
+									fmt.Println("JSON File has wrong format")
+								}
+							}
+							if k == "label" && v == "Working on the right commit" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[2] = webhookData[0]
+										}
+									}
+								default:
+									fmt.Println("JSON File has wrong format")
+								}
+							}
+						}
+					default:
+						fmt.Println("JSON File has wrong format")
+					}
+				}
+			default:
+				fmt.Println("JSON File has wrong format")
 			}
 		}
-		// TODO use  time.Ticker instead of time.Sleep
-		time.Sleep(jobWaitPoll)
+		// marshal the jobDescriptor back to JSON format
+		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
+		}
+		return jobDescJSON, nil
+	} else {
+		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
+			return nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
+		}
+		//fmt.Println(jobDesc)
+		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
+			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+		} else {
+			switch val := steps.(type) {
+			case []interface{}:
+				for _, v := range val {
+					switch val := v.(type) {
+					case map[string]interface{}:
+						for k, v := range val {
+							if k == "label" && v == "Cloning coreboot" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[1] = webhookData[1] //Repository URL
+										}
+									}
+								default:
+									fmt.Println("YAML File has wrong format")
+								}
+							}
+							if k == "label" && v == "Working on the right commit" {
+								switch val := val["parameters"].(type) {
+								case map[string]interface{}:
+									for k, v := range val {
+										if k == "args" {
+											args := v.([]interface{})
+											args[2] = webhookData[0]
+										}
+									}
+								default:
+									fmt.Println("YAML File has wrong format")
+								}
+							}
+						}
+					default:
+						fmt.Println("YAML File has wrong format")
+					}
+				}
+			default:
+				fmt.Println("YAML File has wrong format")
+			}
+		}
+		// marshal the jobDescriptor into JSON format
+		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
+		}
+		return jobDescJSON, nil
 	}
 }
 

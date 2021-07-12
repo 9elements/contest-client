@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/9elements/contest-client/pkg/client"
+	"github.com/facebookincubator/contest/pkg/transport"
 )
 
 // Name defines the name of the preexecutionhook used within the plugin registry
@@ -26,9 +27,14 @@ func (n *PushtoS3) Name() string {
 }
 
 // RunReport calculates the report to be associated with a job run.
-func (n *PushtoS3) Run(ctx context.Context, parameters interface{}) (interface{}, error) {
-	fmt.Println("I am running the pushtos3 plugin")
-	return "I did nothing", nil
+func (n *PushtoS3) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, rundata map[int][2]string) (interface{}, error) {
+	fmt.Println("Started the postjobplugin PushtoS3")
+	for jobid, jobdetails := range rundata {
+		jobname := jobdetails[0]
+		jobsha := jobdetails[1]
+		go PushResultsToS3(ctx, cd, transport, jobname, jobsha, jobid)
+	}
+	return nil, nil
 }
 
 // New builds a new TargetSuccessReporter
