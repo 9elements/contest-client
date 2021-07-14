@@ -114,19 +114,6 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 									fmt.Println("JSON File has wrong format")
 								}
 							}
-							if k == "label" && v == "Working on the right commit" {
-								switch val := val["parameters"].(type) {
-								case map[string]interface{}:
-									for k, v := range val {
-										if k == "args" {
-											args := v.([]interface{})
-											args[2] = webhookData[0]
-										}
-									}
-								default:
-									fmt.Println("JSON File has wrong format")
-								}
-							}
 						}
 					default:
 						fmt.Println("JSON File has wrong format")
@@ -167,19 +154,6 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 										if k == "args" {
 											args := v.([]interface{})
 											args[1] = webhookData[1] //Repository URL
-										}
-									}
-								default:
-									fmt.Println("YAML File has wrong format")
-								}
-							}
-							if k == "label" && v == "Working on the right commit" {
-								switch val := val["parameters"].(type) {
-								case map[string]interface{}:
-									for k, v := range val {
-										if k == "args" {
-											args := v.([]interface{})
-											args[2] = webhookData[0]
 										}
 									}
 								default:
