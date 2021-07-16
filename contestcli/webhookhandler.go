@@ -17,7 +17,7 @@ func webhook(webhookData chan []string) {
 	channel := &Channel{webhookdata: webhookData}
 	log.Println("webhook listener is running and running")
 	http.HandleFunc("/", channel.handleWebhook)
-	log.Fatal(http.ListenAndServe("0.0.0.0:6000", nil))
+	log.Fatal(http.ListenAndServeTLS("0.0.0.0:6000", "certs/server.crt", "certs/server.key", nil))
 }
 
 //handleWebhook handles the incoming webhooks and then adapt the jobDescriptor templates to kick off new jobs depending on them
