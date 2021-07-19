@@ -8,7 +8,7 @@
             "flagS3": false,
             "flagjobwaitpoll" : 60,
             "flagLogLevel": "",
-            "flagJobTemplate": ["deltalake-coreboot-example_qemu.yaml"]                    
+            "flagJobTemplate": ["coreboot-spr-sp.yaml"]                    
         }
     ,
     "PreJobExecutionHooks": [

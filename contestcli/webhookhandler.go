@@ -41,11 +41,11 @@ func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Printf("successful received pullrequest event\n")
-		tmp = append(tmp, *e.PullRequest.Head.SHA, *e.PullRequest.Head.Repo.HTMLURL, *e.PullRequest.Head.Ref)
+		tmp = append(tmp, *e.PullRequest.Head.SHA, *e.PullRequest.Head.Repo.SSHURL, *e.PullRequest.Head.Ref)
 		channel.webhookdata <- tmp
 	case *github.PushEvent:
 		fmt.Printf("successful received push event\n")
-		tmp = append(tmp, *e.After, *e.Repo.HTMLURL)
+		tmp = append(tmp, *e.After, *e.Repo.SSHURL)
 		channel.webhookdata <- tmp
 	default:
 		log.Printf("successful received unknown event %s %s\n", github.WebHookType(r), e)

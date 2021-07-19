@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/Navops/yaml v0.0.0-20160713163424-85482c8b225b
 	github.com/aws/aws-sdk-go v1.38.36
+	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/facebookincubator/contest v0.0.0-20210507142415-f58074a3f946
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.1.0 // indirect
