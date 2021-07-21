@@ -35,7 +35,8 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			log.Printf("could not parse the jobtemplate: %s\n", err)
 		}
 		//Updating the github status to pending
-		res := githubAPI.EditGithubStatus(ctx, "pending", "http://someurl.com", *cd.Flags.FlagJobTemplate[i], webhookData[0])
+		res := githubAPI.EditGithubStatus(ctx, "pending", "http://someurl.com",
+			*cd.Flags.FlagJobTemplate[i], webhookData[0])
 		if res != nil {
 			log.Printf("could not change the github status: %s\n", res)
 		}

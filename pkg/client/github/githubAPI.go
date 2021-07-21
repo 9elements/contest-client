@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"regexp"
 
 	"github.com/google/go-github/github"
@@ -12,9 +13,12 @@ import (
 )
 
 func EditGithubStatus(ctx context.Context, state string, targeturl string, description string, sha string) error {
+	// getting env variables SITE_TITLE and DB_HOST
+	githubToken := os.Getenv("GH_TOKEN")
+
 	//setting up the github authentication
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: "YOURGITHUBTOKEN"},
+		&oauth2.Token{AccessToken: githubToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
@@ -25,14 +29,15 @@ func EditGithubStatus(ctx context.Context, state string, targeturl string, descr
 	}
 
 	match, err := regexp.MatchString("[a-f0-9]{40}", sha)
-	if !match { //catch wrong commit sha's
+
+	if !match {
 		log.Printf("the commit sha was not handed over correctly!\n")
 		return err
 	}
 	input := &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
-	_, _, erro := client.Repositories.CreateStatus(ctx, "llogen", "webhook", sha, input)
-	if erro != nil {
-		log.Printf("could not set status of the commit to %s: err=%s\n", state, erro)
+	_, _, err = client.Repositories.CreateStatus(ctx, "llogen", "webhook", sha, input)
+	if err != nil {
+		log.Printf("could not set status of the commit to %s: err=%s\n", state, err)
 	}
 	return nil
 }
