@@ -35,7 +35,7 @@ func EditGithubStatus(ctx context.Context, state string, targeturl string, descr
 		return err
 	}
 	input := &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
-	_, _, err = client.Repositories.CreateStatus(ctx, "llogen", "webhook", sha, input)
+	_, _, err = client.Repositories.CreateStatus(ctx, "9eCyberSec", "coreboot-spr-sp", sha, input)
 	if err != nil {
 		log.Printf("could not set status of the commit to %s: err=%s\n", state, err)
 	}
