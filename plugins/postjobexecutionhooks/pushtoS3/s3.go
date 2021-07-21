@@ -23,16 +23,16 @@ import (
 
 const (
 	S3_REGION = "eu-central-1"
-	S3_BUCKET = "9e-contest"
-	S3_FOLDER = "test_results"
+	S3_BUCKET = "coreboot-spr-sp-images"
+	S3_FOLDER = "binaries"
 )
 
 func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, jobName string, jobSha string, jobID int) error {
 
 	// Create a single AWS session (we can re use this if we're uploading many files)
 	s, err := session.NewSession(&aws.Config{Region: aws.String(S3_REGION), Credentials: credentials.NewSharedCredentials(
-		"",        // filename
-		"default", //profile
+		"",           // filename
+		"9e-AWS-Key", //profile
 	)})
 	if err != nil {
 		return err
