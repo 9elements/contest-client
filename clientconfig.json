@@ -1,7 +1,7 @@
 {
     "Flags": 
         {
-            "flagAddr": "",
+            "flagAddr": "http://10.93.193.82:8080",
             "flagRequestor": "",
             "flagWait": false,
             "flagYAML": true,
