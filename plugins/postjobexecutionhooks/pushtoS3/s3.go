@@ -65,6 +65,14 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 				respBodyBytes := new(bytes.Buffer)
 				json.NewEncoder(respBodyBytes).Encode(resp)
 
+				// Upload
+				filename, err := AddFileToS3(s, respBodyBytes.Bytes(), jobID)
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+				fileurl := "https://coreboot-spr-sp-images.s3.eu-central-1.amazonaws.com/binaries/" + filename
+
 				jobStatus = resp.Data.Status.JobReport.RunReports
 				for _, finalreports := range jobStatus {
 					var matcherr bool = false
@@ -110,23 +118,17 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 							continue
 						}
 						if matcherr {
-							err := githubAPI.EditGithubStatus(ctx, "error", "http://someurl.com", jobName, jobSha)
+							err := githubAPI.EditGithubStatus(ctx, "error", fileurl, jobName, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
 							}
 						} else if matchsucceed && !matcherr {
-							err := githubAPI.EditGithubStatus(ctx, "success", "http://someurl.com", jobName, jobSha)
+							err := githubAPI.EditGithubStatus(ctx, "success", fileurl, jobName, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
 							}
 						}
 					}
-				}
-				// Upload
-				err = AddFileToS3(s, respBodyBytes.Bytes(), jobID)
-				if err != nil {
-					fmt.Println(err)
-					return err
 				}
 				return nil
 			}
@@ -141,7 +143,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 
 // AddFileToS3 will upload a single file to S3, it will require a pre-built aws session
 // and will set file info like content type and encryption on the uploaded file.
-func AddFileToS3(s *session.Session, response []byte, jobID int) error {
+func AddFileToS3(s *session.Session, response []byte, jobID int) (string, error) {
 
 	buffer := response
 	currentTime := time.Now()
@@ -153,7 +155,7 @@ func AddFileToS3(s *session.Session, response []byte, jobID int) error {
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(S3_BUCKET),
 		Key:                  aws.String(fileName),
-		ACL:                  aws.String("private"),
+		ACL:                  aws.String("public-read"),
 		Body:                 bytes.NewReader(buffer),
 		ContentLength:        aws.Int64(int64(len(buffer))),
 		ContentType:          aws.String(http.DetectContentType(buffer)),
@@ -161,9 +163,9 @@ func AddFileToS3(s *session.Session, response []byte, jobID int) error {
 		ServerSideEncryption: aws.String("AES256"),
 	})
 	if err != nil {
-		return err
+		return "", err
 	} else {
 		fmt.Printf("Pushed the JobReport from JobID %d to S3 Bucket! \n", jobID)
 	}
-	return err
+	return fileName, err
 }
