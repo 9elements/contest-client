@@ -67,7 +67,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		if err != nil {
 			fmt.Println("Could not parse data to json format.")
 		}
-		resp, err := http.Post("http://localhost:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data)) //HTTP Post all to the API
+		resp, err := http.Post("http://10.93.193.82:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data)) //HTTP Post all to the API
 
 		if err != nil {
 			fmt.Println("Could not post data to API.")

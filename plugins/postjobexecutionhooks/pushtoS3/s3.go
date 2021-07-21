@@ -39,7 +39,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 	}
 	fmt.Println("S3 Bucket session established.")
 
-	readjobstatus := "http://localhost:3005/readjobstatus/" + fmt.Sprint(jobID)
+	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
 
 	var jobStatus [][]*job.Report
 
