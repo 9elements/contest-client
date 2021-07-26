@@ -102,13 +102,13 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 					switch val := v.(type) {
 					case map[string]interface{}:
 						for k, v := range val {
-							if k == "label" && v == "Cloning coreboot" {
+							if k == "label" && v == "Checkout to the right commit" {
 								switch val := val["parameters"].(type) {
 								case map[string]interface{}:
 									for k, v := range val {
 										if k == "args" {
 											args := v.([]interface{})
-											args[1] = webhookData[1] //Repository URL
+											args[1] = webhookData[0] //CommitSHA
 										}
 									}
 								default:
@@ -154,7 +154,7 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 									for k, v := range val {
 										if k == "args" {
 											args := v.([]interface{})
-											args[1] = webhookData[1] //Repository URL
+											args[1] = webhookData[0] //CommitSHA
 										}
 									}
 								default:

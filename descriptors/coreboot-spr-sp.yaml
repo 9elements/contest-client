@@ -42,12 +42,12 @@ TestDescriptors:
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
                         expect: ["Fetching 9elements"]
                 -   name: cmd
-                    label: Checkout 9elements/master
+                    label: Checkout to the right commit
                     parameters:
                         executable: [git]
                         args: ["checkout","9elements/master"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                        expect: ["switching to '9elements/master'"]
+                        expect: ["switching to the right commit"]
                 -   name: cmd
                     label: Cloning all assets
                     parameters:
