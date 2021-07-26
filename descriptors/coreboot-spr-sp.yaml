@@ -32,7 +32,7 @@ TestDescriptors:
                     label: Adding 9elements remote
                     parameters:
                         executable: [git]
-                        args: ["remote","add", "9elements", "https://github.com/9elements/coreboot-spr-sp"]
+                        args: ["remote","add", "9elements", "git@github.com/9elements/coreboot-spr-sp.git"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
                 -   name: cmd
                     label: Fetching 9elements data
