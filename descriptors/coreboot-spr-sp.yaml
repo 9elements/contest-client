@@ -19,7 +19,7 @@ TestDescriptors:
                     label: Cloning coreboot
                     parameters:
                         executable: [git]
-                        args: ["clone","git@github.com:9elements/coreboot-spr-sp.git", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        args: ["clone","git@github.com:coreboot/coreboot.git", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
                         expect: ["Cloning into"]
                 -   name: cmd
                     label: Cloning submodules
