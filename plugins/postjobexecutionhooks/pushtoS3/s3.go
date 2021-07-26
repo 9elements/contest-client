@@ -31,8 +31,8 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 
 	// Create a single AWS session (we can re use this if we're uploading many files)
 	s, err := session.NewSession(&aws.Config{Region: aws.String(S3_REGION), Credentials: credentials.NewSharedCredentials(
-		"/home/clange/.aws/credentials", // filename
-		"9e-AWS-Key",                    //profile
+		"",           // filename
+		"9e-AWS-Key", //profile
 	)})
 	if err != nil {
 		return err
