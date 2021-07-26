@@ -89,7 +89,7 @@ TestDescriptors:
                     label: upload coreboot binary
                     parameters:
                         executable: [sh]
-                        args: ["uploadBinarytoS3.sh"]
+                        args: ["uploadBinarytoS3.sh", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]   
                         expect: ["successful uploaded binary 'coreboot.rom' to S3 bucket"]
     -   TargetManagerName: CSVFileTargetManager
