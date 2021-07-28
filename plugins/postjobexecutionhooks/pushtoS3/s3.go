@@ -38,17 +38,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 	if err != nil {
 		return err
 	}
-	input := &s3.ListObjectsV2Input{Bucket: aws.String(S3_BUCKET), Prefix: aws.String(S3_BINARIES)}
-	client := s3.New(s)
-	resp, err := client.ListObjectsV2(input)
-	if err != nil {
-		return fmt.Errorf("unable to list items in bucket %s, %v", S3_BUCKET, err)
-	}
-	fmt.Println("S3 Bucket session established.")
-	fmt.Println(resp)
-	for _, item := range resp.Contents {
-		fmt.Println("Last modified:", *item.LastModified)
-	}
 
 	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
 
@@ -81,7 +70,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 				if err != nil {
 					return err
 				}
-				fileurl := "https://coreboot-spr-sp-images.s3.eu-central-1.amazonaws.com/binaries/" + filename
+				fileurl := "https://coreboot-spr-sp-images.s3.eu-central-1.amazonaws.com/" + filename
 
 				jobStatus = resp.Data.Status.JobReport.RunReports
 				for _, finalreports := range jobStatus {
@@ -100,7 +89,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 								}
 								fmt.Printf("the test with JobID %d does not succeeded!\n", jobID)
 							}
-							matchsuccess, _ := regexp.MatchString("does pass", status.(string))
+							matchsuccess, _ := regexp.MatchString("passes", status.(string))
 							if matchsuccess {
 								if !matchsucceed {
 									matchsucceed = matchsuccess
@@ -116,7 +105,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 									}
 									fmt.Printf("the test with JobID %d does not succeeded!\n", jobID)
 								}
-								matchsuccess, _ := regexp.MatchString("does pass", item.(string))
+								matchsuccess, _ := regexp.MatchString("passes", item.(string))
 								if matchsuccess {
 									if !matchsucceed {
 										matchsucceed = matchsuccess
@@ -174,6 +163,7 @@ func AddFileToS3(s *session.Session, response []byte, jobID int) (string, error)
 		ContentDisposition:   aws.String("attachment"),
 		ServerSideEncryption: aws.String("AES256"),
 	})
+	fmt.Println("S3 Bucket session established.")
 	if err != nil {
 		return "", err
 	} else {
