@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	S3_REGION = "eu-central-1"
-	S3_BUCKET = "coreboot-spr-sp-images"
-	S3_FOLDER = "test_results"
+	S3_REGION   = "eu-central-1"
+	S3_BUCKET   = "coreboot-spr-sp-images"
+	S3_RESULTS  = "test_results"
+	S3_BINARIES = "binaries"
 )
 
 func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, jobName string, jobSha string, jobID int) error {
@@ -37,7 +38,21 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 	if err != nil {
 		return err
 	}
+	client := s3.New(s)
 	fmt.Println("S3 Bucket session established.")
+
+	resp, err := client.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(S3_BUCKET), Prefix: aws.String(S3_BINARIES)})
+	if err != nil {
+		return fmt.Errorf("unable to list items in bucket %s, %v", S3_BUCKET, err)
+	}
+
+	for _, item := range resp.Contents {
+		fmt.Println("Name:         ", *item.Key)
+		fmt.Println("Last modified:", *item.LastModified)
+		fmt.Println("Size:         ", *item.Size)
+		fmt.Println("Storage class:", *item.StorageClass)
+		fmt.Println("")
+	}
 
 	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
 
@@ -150,7 +165,7 @@ func AddFileToS3(s *session.Session, response []byte, jobID int) (string, error)
 
 	// Config settings: this is where you choose the bucket, filename, content-type etc.
 	// of the file you're uploading.
-	fileName := fmt.Sprintf("%s/%s_%d.json", S3_FOLDER, currentTime.Format("20060102_150405"), jobID)
+	fileName := fmt.Sprintf("%s/%s_%d.json", S3_RESULTS, currentTime.Format("20060102_150405"), jobID)
 
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(S3_BUCKET),
