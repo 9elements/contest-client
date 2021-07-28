@@ -38,20 +38,16 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 	if err != nil {
 		return err
 	}
+	input := &s3.ListObjectsV2Input{Bucket: aws.String(S3_BUCKET), Prefix: aws.String(S3_BINARIES)}
 	client := s3.New(s)
-	fmt.Println("S3 Bucket session established.")
-
-	resp, err := client.ListObjectsV2(&s3.ListObjectsV2Input{Bucket: aws.String(S3_BUCKET), Prefix: aws.String(S3_BINARIES)})
+	resp, err := client.ListObjectsV2(input)
 	if err != nil {
 		return fmt.Errorf("unable to list items in bucket %s, %v", S3_BUCKET, err)
 	}
-
+	fmt.Println("S3 Bucket session established.")
+	fmt.Println(resp)
 	for _, item := range resp.Contents {
-		fmt.Println("Name:         ", *item.Key)
 		fmt.Println("Last modified:", *item.LastModified)
-		fmt.Println("Size:         ", *item.Size)
-		fmt.Println("Storage class:", *item.StorageClass)
-		fmt.Println("")
 	}
 
 	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
@@ -83,7 +79,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 				// Upload
 				filename, err := AddFileToS3(s, respBodyBytes.Bytes(), jobID)
 				if err != nil {
-					fmt.Println(err)
 					return err
 				}
 				fileurl := "https://coreboot-spr-sp-images.s3.eu-central-1.amazonaws.com/binaries/" + filename
@@ -92,8 +87,10 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 				for _, finalreports := range jobStatus {
 					var matcherr bool = false
 					var matchsucceed bool = false
+					fmt.Println(finalreports)
 					for _, reports := range finalreports {
 						var status = reports.Data
+						fmt.Println(reports)
 						switch statustype := status.(type) {
 						case string:
 							matcherror, _ := regexp.MatchString("does not pass", status.(string))
@@ -132,6 +129,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 							fmt.Println(statustype)
 							continue
 						}
+						fmt.Println(matchsucceed, matcherr)
 						if matcherr {
 							err := githubAPI.EditGithubStatus(ctx, "error", fileurl, jobName, jobSha)
 							if err != nil {
@@ -151,7 +149,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor, transport 
 			fmt.Println("The HTTP Post responded a statuscode != 200")
 		}
 		// TODO use  time.Ticker instead of time.Sleep
-
 		time.Sleep(time.Duration(*cd.Flags.FlagjobWaitPoll) * time.Second)
 	}
 }
