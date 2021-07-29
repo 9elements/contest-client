@@ -73,7 +73,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 				if err != nil {
 					return err
 				}
-				// Encoding
+				// Decoding
 				respBodyBytes := new(bytes.Buffer)
 				json.NewEncoder(respBodyBytes).Encode(resp)
 
