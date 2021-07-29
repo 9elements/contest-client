@@ -9,7 +9,9 @@ import (
 
 // NewPreJobExecutionHookBundle creates a PreJobExecutionHook and associated parameters based on
 // the content of the client prehook descriptor
-func (r *ClientPluginRegistry) NewPreJobExecutionHookBundle(ctx xcontext.Context, preHookDescriptor *client.PreHookDescriptor) (*client.PreHookExecutionBundle, error) {
+func (r *ClientPluginRegistry) NewPreJobExecutionHookBundle(ctx xcontext.Context, preHookDescriptor *client.PreHookDescriptor) (
+	*client.PreHookExecutionBundle, error) {
+
 	// Initialization and validation of the PreExecutionHook and its parameters
 	if preHookDescriptor == nil {
 		return nil, fmt.Errorf("pre execution hook description is null")
@@ -23,7 +25,6 @@ func (r *ClientPluginRegistry) NewPreJobExecutionHookBundle(ctx xcontext.Context
 	if err != nil {
 		return nil, fmt.Errorf("could not validate PreExecutionHook fetch parameters: %v", err)
 	}
-
 	preHookExecutionBundle := client.PreHookExecutionBundle{
 		PreJobExecutionHooks: preJobExecutionHook,
 		Parameters:           fp,
@@ -33,7 +34,9 @@ func (r *ClientPluginRegistry) NewPreJobExecutionHookBundle(ctx xcontext.Context
 
 // NewPostJobExecutionHookBundle creates a PostJobExecutionHook and associated parameters based on
 // the content of the client prehook descriptor
-func (r *ClientPluginRegistry) NewPostJobExecutionHookBundle(ctx xcontext.Context, postHookDescriptor *client.PostHookDescriptor) (*client.PostHookExecutionBundle, error) {
+func (r *ClientPluginRegistry) NewPostJobExecutionHookBundle(ctx xcontext.Context, postHookDescriptor *client.PostHookDescriptor) (
+	*client.PostHookExecutionBundle, error) {
+
 	// Initialization and validation of the PostExecutionHook and its parameters
 	if postHookDescriptor == nil {
 		return nil, fmt.Errorf("post execution hook description is null")
@@ -47,7 +50,6 @@ func (r *ClientPluginRegistry) NewPostJobExecutionHookBundle(ctx xcontext.Contex
 	if err != nil {
 		return nil, fmt.Errorf("could not validate PostExecutionHook fetch parameters: %v", err)
 	}
-
 	postHookExecutionBundle := client.PostHookExecutionBundle{
 		PostJobExecutionHooks: postJobExecutionHook,
 		Parameters:            fp,

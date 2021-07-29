@@ -119,7 +119,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 				return err
 			}
 			//run the plugin
-			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, nextWebhookData); err != nil {
+			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}); err != nil {
 				return err
 			}
 		}

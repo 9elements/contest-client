@@ -102,11 +102,13 @@ func (d *PostHookDescriptor) PostValidate() error {
 }
 
 type PreJobExecutionHooks interface {
-	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport, webhookData []string) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
+		transport transport.Transport) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
 
 type PostJobExecutionHooks interface {
-	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor, transport transport.Transport, rundata map[int][2]string) (interface{}, error)
+	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
+		transport transport.Transport, rundata map[int][2]string) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }

@@ -8,8 +8,8 @@ package noop
 import (
 	"context"
 
-	"github.com/facebookincubator/contest/pkg/event/testevent"
-	"github.com/facebookincubator/contest/pkg/job"
+	"github.com/9elements/contest-client/pkg/client"
+	"github.com/facebookincubator/contest/pkg/transport"
 )
 
 // Name defines the name of the reporter used within the plugin registry
@@ -19,15 +19,8 @@ var Name = "noop"
 type Noop struct{}
 
 // ValidateRunParameters validates the parameters for the run reporter
-func (n *Noop) ValidateRunParameters(params []byte) (interface{}, error) {
-	var s string
-	return s, nil
-}
-
-// ValidateFinalParameters validates the parameters for the final reporter
-func (n *Noop) ValidateFinalParameters(params []byte) (interface{}, error) {
-	var s string
-	return s, nil
+func (n *Noop) ValidateParameters(params []byte) (interface{}, error) {
+	return nil, nil
 }
 
 // Name returns the Name of the reporter
@@ -36,21 +29,17 @@ func (n *Noop) Name() string {
 }
 
 // RunReport calculates the report to be associated with a job run.
-func (n *Noop) RunReport(ctx context.Context, parameters interface{}, runStatus *job.RunStatus, ev testevent.Fetcher) (bool, interface{}, error) {
-	return true, "I did nothing", nil
-}
-
-// FinalReport calculates the final report to be associated to a job.
-func (n *Noop) FinalReport(ctx context.Context, parameters interface{}, runStatuses []job.RunStatus, ev testevent.Fetcher) (bool, interface{}, error) {
-	return true, "I did nothing at the end, all good", nil
+func (n *Noop) Run(ctx context.Context, parameters interface{},
+	cd client.ClientDescriptor, transport transport.Transport) (interface{}, error) {
+	return nil, nil
 }
 
 // New builds a new TargetSuccessReporter
-func New() job.Reporter {
+func New() client.PreJobExecutionHooks {
 	return &Noop{}
 }
 
 // Load returns the name and factory which are needed to register the Reporter
-func Load() (string, job.ReporterFactory) {
+func Load() (string, client.PreJobExecutionHooksFactory) {
 	return Name, New
 }
