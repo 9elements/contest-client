@@ -16,12 +16,6 @@ import (
 // Requires the `httplistener` plugin for the API listener.
 //
 // Usage examples:
-// Start a job with the provided job description from a JSON file
-//   ./contestcli start start.json
-//
-// Get the status of a job whose ID is 10
-//   ./contestcli status 10
-//
 // List all the jobs:
 //   ./contestcli list
 //
