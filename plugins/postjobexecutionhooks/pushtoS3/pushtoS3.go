@@ -30,8 +30,11 @@ func (n *PushtoS3) Name() string {
 func (n *PushtoS3) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, rundata map[int][2]string) (interface{}, error) {
 	fmt.Println("Started the postjobplugin PushtoS3")
 	for jobid, jobdetails := range rundata {
+		//retrieve the name of the job
 		jobname := jobdetails[0]
+		//retrieve the SHA of the commit
 		jobsha := jobdetails[1]
+		//kicking off the main logic in a go routine
 		go PushResultsToS3(ctx, cd, transport, jobname, jobsha, jobid)
 	}
 	return nil, nil
