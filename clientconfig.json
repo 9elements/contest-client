@@ -1,14 +1,14 @@
 {
     "Flags": 
         {
-            "flagAddr": "http://10.93.193.82:8080",
+            "flagAddr": "",
             "flagRequestor": "",
             "flagWait": false,
             "flagYAML": true,
             "flagS3": false,
             "flagjobwaitpoll" : 60,
             "flagLogLevel": "",
-            "flagJobTemplate": ["coreboot-spr-sp.yaml"]                    
+            "flagJobTemplate": [""]                    
         }
     ,
     "PreJobExecutionHooks": [
@@ -21,7 +21,7 @@
     ],
     "PostJobExecutionHooks": [
         {
-            "Name": "pushtoS3",
+            "Name": "noop",
             "Parameters": {
                 "URI": ""
             }
