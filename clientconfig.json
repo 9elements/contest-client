@@ -13,7 +13,7 @@
     ,
     "PreJobExecutionHooks": [
         {
-            "Name": "webhook",
+            "Name": "noop",
             "Parameters": {
                 "URI": ""
             }
