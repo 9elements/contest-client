@@ -2,7 +2,6 @@ package githubAPI
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -14,35 +13,31 @@ import (
 )
 
 func EditGithubStatus(ctx context.Context, state string, targeturl string, description string, sha string) error {
+	// getting env variable GH_TOKEN
+	githubToken := os.Getenv("GH_TOKEN")
+
 	//setting up the github authentication
-	f, err := os.Open("githubtoken.json")
-	if err != nil {
-		fmt.Printf("Could no open the github token file!\n")
-	}
-	defer f.Close()
-	tok := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(tok)
-	if err != nil {
-		fmt.Printf("Could not decode the json file")
-	}
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: tok.AccessToken},
+		&oauth2.Token{AccessToken: githubToken},
 	)
+	//setting up a github client
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 
-	_, err = url.ParseRequestURI(targeturl)
-	if err != nil {
+	//if the targetURL is not empty and wrong formatted, return
+	_, err := url.ParseRequestURI(targeturl)
+	if err != nil && targeturl != "" {
 		return fmt.Errorf("TargetURL of the results is not formatted right! GithubStatus could not be edited")
 	}
-
+	//check if sha is a correct formatted sha1 hash else return
 	match, err := regexp.MatchString("[a-f0-9]{40}", sha)
-	if !match { //catch wrong commit sha's
-		log.Printf("the commit sha was not handed over correctly!\n")
-		return err
+	if !match {
+		fmt.Printf("Error is: %v\n", err)
+		return fmt.Errorf("the commit sha was not handed over correctly")
 	}
+	//Putting the CreateStatus input together and change the status of the commit
 	input := &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
-	_, _, err = client.Repositories.CreateStatus(ctx, "llogen", "webhook", sha, input)
+	_, _, err = client.Repositories.CreateStatus(ctx, "9elements", "coreboot-spr-sp", sha, input)
 	if err != nil {
 		log.Printf("could not set status of the commit to %s: err=%s\n", state, err)
 	}

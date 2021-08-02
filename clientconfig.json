@@ -1,19 +1,19 @@
 {
     "Flags": 
         {
-            "flagAddr": "",
+            "flagAddr": "http://10.93.193.82:8080",
             "flagRequestor": "",
             "flagWait": false,
             "flagYAML": true,
             "flagS3": false,
             "flagjobwaitpoll" : 60,
             "flagLogLevel": "",
-            "flagJobTemplate": ["deltalake-coreboot-example_qemu.yaml"]                    
+            "flagJobTemplate": ["coreboot-spr-sp.yaml"]                    
         }
     ,
     "PreJobExecutionHooks": [
         {
-            "Name": "webhook",
+            "Name": "noop",
             "Parameters": {
                 "URI": ""
             }

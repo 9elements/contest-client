@@ -1,0 +1,123 @@
+JobName: Coreboot binary to S3
+Runs: 1
+RunInterval: 60s
+Tags: ["coreboot", "binary", "rom"]
+TestDescriptors:
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters:
+            FileURI: hosts.csv
+            Shuffle: true
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: push coreboot binary to S3
+            Steps:
+                -   name: cmd
+                    label: Cloning coreboot
+                    parameters:
+                        executable: [git]
+                        args: ["clone","git@github.com:coreboot/coreboot.git", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+                -   name: cmd
+                    label: Cloning submodules
+                    parameters:
+                        executable: [git]
+                        args: ["submodule","update", "--checkout", "--init"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+                -   name: cmd
+                    label: Adding 9elements remote
+                    parameters:
+                        executable: [git]
+                        args: ["remote","add", "9elements", "git@github.com:9elements/coreboot-spr-sp.git"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Fetching 9elements data
+                    parameters:
+                        executable: [git]
+                        args: ["fetch","--all"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Fetching 9elements"]
+                -   name: cmd
+                    label: Checkout to the right commit
+                    parameters:
+                        executable: [git]
+                        args: ["checkout","9elements/master"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["switching to the right commit"]
+                -   name: cmd
+                    label: Cloning all assets
+                    parameters:
+                        executable: [git]
+                        args: ["clone","git@github.com:9elements/contest-job-assets", "/tmp/assets-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+                -   name: cmd
+                    label: Config into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/configs/defconfig_coreboot-spr-sp", "configs/defconfig"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Upload binary script into folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/uploadBinarytoS3.sh", "uploadBinarytoS3.sh"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Creating the .config file
+                    parameters:
+                        executable: [make]
+                        args: ["defconfig"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["configuration written to"]
+                -   name: cmd
+                    label: Building the toolchain
+                    parameters:
+                        executable: [make]
+                        args: ["crossgcc-i386","CPUS=52"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["You can now run IASL ACPI compiler from"]
+                -   name: cmd
+                    label: Build coreboot
+                    parameters:
+                        executable: [make]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: upload coreboot binary
+                    parameters:
+                        executable: [sh]
+                        args: ["uploadBinarytoS3.sh", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]   
+                        expect: ["successful uploaded binary 'coreboot.rom' to S3 bucket"]
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters: 
+            FileURI: hosts.csv
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Cleanup
+            Steps:
+                -   name: cmd
+                    label: Delete local Files coreboot
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Delete local Files assets
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
+Reporting:
+    RunReporters:
+        -   name: TargetSuccess
+            parameters:
+                SuccessExpression: "=100%"
+        -   name: PostDone
+            parameters:
+                ApiURI: "http://localhost:3005/updatejobstatus/"
