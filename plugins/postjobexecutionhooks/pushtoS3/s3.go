@@ -86,7 +86,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 
 				// Creating link where the job report can be downloaded.
 				// This link will be put into the commit message right after the test status
-				fileurl := "https://coreboot-spr-sp-images.s3.eu-central-1.amazonaws.com/" + filename
+				fileurl := "https://" + S3_BUCKET + ".s3." + S3_REGION + ".amazonaws.com/" + filename
 
 				jobStatus = resp.Data.Status.JobReport.RunReports
 				// Go through all final reports
@@ -96,6 +96,15 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 					//Go through all report in the final reports
 					for _, reports := range finalreports {
 						var status = reports.Data
+						/* If the uploadtestfile plugin serversite is used than extract the link to the
+						uploaded object and than put the link into the github status */
+						var status_desc = jobName + " binary"
+						if reports.ReporterName == "uploadtestfile" {
+							err := githubAPI.EditGithubStatus(ctx, "", status.(string), status_desc, jobSha)
+							if err != nil {
+								fmt.Println("GithubStatus could not be edited to status: error", err)
+							}
+						}
 						// Switch Case because the Data can be either a string or an interface{}
 						// Within this, the tests will be checked, if they were successful or not
 						switch statustype := status.(type) {
