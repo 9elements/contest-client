@@ -36,7 +36,13 @@ func EditGithubStatus(ctx context.Context, state string, targeturl string, descr
 		return fmt.Errorf("the commit sha was not handed over correctly")
 	}
 	//Putting the CreateStatus input together and change the status of the commit
-	input := &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
+	var input *github.RepoStatus
+	if state != "" {
+		input = &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
+	} else {
+		input = &github.RepoStatus{TargetURL: &targeturl, Context: &description}
+	}
+
 	_, _, err = client.Repositories.CreateStatus(ctx, "9elements", "coreboot-spr-sp", sha, input)
 	if err != nil {
 		log.Printf("could not set status of the commit to %s: err=%s\n", state, err)
