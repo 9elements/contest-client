@@ -121,3 +121,8 @@ Reporting:
         -   name: PostDone
             parameters:
                 ApiURI: "http://localhost:3005/updatejobstatus/"
+    FinalReporters:
+        -   name: UploadTestFile
+            parameters:
+                Path: "/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"
+                Filename: "coreboot.rom"
