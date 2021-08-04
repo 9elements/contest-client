@@ -4,20 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
-	"strconv"
 
 	"github.com/9elements/contest-client/pkg/client"
 	githubAPI "github.com/9elements/contest-client/pkg/github"
 	"github.com/Navops/yaml"
 	"github.com/facebookincubator/contest/pkg/transport"
-	"github.com/facebookincubator/contest/pkg/types"
 )
 
 /* Function run runs the main functionility of the contest-client.
@@ -56,9 +53,10 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
 			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
-		}
-		if int(startResp.Data.JobID) == 0 {
-			fmt.Printf("The Job could not executed. Server returned JobID 0! \n") //TODO: ERROR HANDLING
+		} else {
+			if int(startResp.Data.JobID) == 0 {
+				fmt.Printf("The Job could not executed. Server returned JobID 0! \n") //TODO: ERROR HANDLING
+			}
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
@@ -103,11 +101,11 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 		}
 		// Diving into the YAML structure to get to the parameter we want to edit
 		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
 		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
 		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
 		} else {
 			switch val := steps.(type) {
 			case []interface{}:
@@ -153,11 +151,11 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 		}
 		// Diving into the JSON structure to get to the parameter we want to edit
 		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
 		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
 		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase", ok)
+			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
 		} else {
 			switch val := steps.(type) {
 			case []interface{}:
@@ -196,20 +194,4 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 		// Return the adapted jobDescriptor
 		return jobDescJSON, nil
 	}
-}
-
-func parseJob(jobIDStr string) (types.JobID, error) {
-	if jobIDStr == "" {
-		return 0, errors.New("missing job ID")
-	}
-	var jobID types.JobID
-	jobIDint, err := strconv.Atoi(jobIDStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid job ID: %s: %v", jobIDStr, err)
-	}
-	jobID = types.JobID(jobIDint)
-	if jobID <= 0 {
-		return 0, fmt.Errorf("invalid job ID: %s: it must be positive", jobIDStr)
-	}
-	return jobID, nil
 }
