@@ -85,13 +85,11 @@ TestDescriptors:
                     parameters:
                         executable: [make]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                -   name: cmd
+                -   name: uploadfile
                     label: upload coreboot binary
                     parameters:
-                        executable: [sh]
-                        args: ["uploadBinarytoS3.sh", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]   
-                        expect: ["successful uploaded binary 'coreboot.rom' to S3 bucket"]
+                        path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
+                        filename: ["coreboot.rom"]
     -   TargetManagerName: CSVFileTargetManager
         TargetManagerAcquireParameters: 
             FileURI: hosts.csv
@@ -121,8 +119,3 @@ Reporting:
         -   name: PostDone
             parameters:
                 ApiURI: "http://localhost:3005/updatejobstatus/"
-    FinalReporters:
-        -   name: UploadTestFile
-            parameters:
-                Path: "/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"
-                Filename: "coreboot.rom"
