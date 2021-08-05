@@ -29,6 +29,10 @@ const (
 	S3_BINARIES = "binaries"
 )
 
+type url struct {
+	Msg string
+}
+
 func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 	transport transport.Transport, jobName string, jobSha string, jobID int) error {
 
@@ -46,6 +50,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
 
 	var jobStatus [][]*job.Report
+	var binaryURL []job.TestStatus
 
 	// Loop til the job report is finished and uploaded
 	for {
@@ -88,7 +93,33 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 				// This link will be put into the commit message right after the test status
 				fileurl := "https://" + S3_BUCKET + ".s3." + S3_REGION + ".amazonaws.com/" + filename
 
+				// Go through the report and retrieve the binaryURL from the uploadfile teststep
 				jobStatus = resp.Data.Status.JobReport.RunReports
+				binaryURL = resp.Data.Status.RunStatus.TestStatuses
+				for _, teststatus := range binaryURL {
+					if teststatus.TestName == "push coreboot binary to S3" {
+						var TestStepStatuses = teststatus.TestStepStatuses
+						for _, teststepstatus := range TestStepStatuses {
+							if teststepstatus.TestStepCoordinates.TestStepName == "UploadFile" {
+								var TargetStatuses = teststepstatus.TargetStatuses
+								for _, targetstatus := range TargetStatuses {
+									for _, events := range targetstatus.Events {
+										if events.Data.EventName == "CmdStdout" {
+											var url url
+											var status_desc = jobName + " binary:"
+											json.Unmarshal(*events.Data.Payload, &url)
+											err := githubAPI.EditGithubStatus(ctx, "success", url.Msg, status_desc, jobSha)
+											if err != nil {
+												fmt.Println("GithubStatus could not be edited to status: success", err)
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
 				// Go through all final reports
 				for _, finalreports := range jobStatus {
 					var matcherr bool = false
@@ -96,15 +127,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 					//Go through all report in the final reports
 					for _, reports := range finalreports {
 						var status = reports.Data
-						/* If the uploadtestfile plugin serversite is used than extract the link to the
-						uploaded object and than put the link into the github status */
-						var status_desc = jobName + " binary"
-						if reports.ReporterName == "uploadtestfile" {
-							err := githubAPI.EditGithubStatus(ctx, "", status.(string), status_desc, jobSha)
-							if err != nil {
-								fmt.Println("GithubStatus could not be edited to status: error", err)
-							}
-						}
 						// Switch Case because the Data can be either a string or an interface{}
 						// Within this, the tests will be checked, if they were successful or not
 						switch statustype := status.(type) {
@@ -147,13 +169,14 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 							continue
 						}
 						// Adapt the Github Commit status depending on the jobResults
+						status_desc := jobName + " test-result:"
 						if matcherr {
-							err := githubAPI.EditGithubStatus(ctx, "error", fileurl, jobName, jobSha)
+							err := githubAPI.EditGithubStatus(ctx, "error", fileurl, status_desc, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
 							}
 						} else if matchsucceed && !matcherr {
-							err := githubAPI.EditGithubStatus(ctx, "success", fileurl, jobName, jobSha)
+							err := githubAPI.EditGithubStatus(ctx, "success", fileurl, status_desc, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
 							}

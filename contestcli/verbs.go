@@ -38,7 +38,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 		//Updating the github status to pending
 		res := githubAPI.EditGithubStatus(ctx, "pending", "",
-			*cd.Flags.FlagJobTemplate[i], webhookData[0])
+			*cd.Flags.FlagJobTemplate[i]+" test-result:", webhookData[0])
 		if res != nil {
 			log.Printf("could not change the github status: %s\n", res)
 		}
@@ -53,6 +53,11 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
 			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
+			err := githubAPI.EditGithubStatus(ctx, "error", "", *cd.Flags.FlagJobTemplate[i]+" test-result:", webhookData[0])
+			if err != nil {
+				fmt.Println("GithubStatus could not be edited to status: error", err)
+			}
+			return jobs, err
 		} else {
 			if int(startResp.Data.JobID) == 0 {
 				fmt.Printf("The Job could not executed. Server returned JobID 0! \n") //TODO: ERROR HANDLING

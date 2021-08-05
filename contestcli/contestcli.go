@@ -127,7 +127,8 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		var rundata map[int][2]string
 		rundata, err := run(ctx, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, stdout, nextWebhookData)
 		if err != nil {
-			return nil
+			fmt.Println("Running the job failed. Err: %w. You should probably check the connection and restart the test.", err)
+			continue
 		}
 
 		for _, eh := range cd.PostJobExecutionHooks {

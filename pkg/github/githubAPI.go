@@ -14,7 +14,7 @@ import (
 
 func EditGithubStatus(ctx context.Context, state string, targeturl string, description string, sha string) error {
 	// getting env variable GH_TOKEN
-	githubToken := os.Getenv("GH_TOKEN")
+	githubToken := os.Getenv("GITHUB_TOKEN")
 
 	//setting up the github authentication
 	ts := oauth2.StaticTokenSource(
@@ -37,11 +37,7 @@ func EditGithubStatus(ctx context.Context, state string, targeturl string, descr
 	}
 	//Putting the CreateStatus input together and change the status of the commit
 	var input *github.RepoStatus
-	if state != "" {
-		input = &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
-	} else {
-		input = &github.RepoStatus{TargetURL: &targeturl, Context: &description}
-	}
+	input = &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
 
 	_, _, err = client.Repositories.CreateStatus(ctx, "9elements", "coreboot-spr-sp", sha, input)
 	if err != nil {

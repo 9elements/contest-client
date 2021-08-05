@@ -85,11 +85,12 @@ TestDescriptors:
                     parameters:
                         executable: [make]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                -   name: uploadfile
+                -   name: UploadFile
                     label: upload coreboot binary
                     parameters:
                         path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
                         filename: ["coreboot.rom"]
+                        emit_stdout: [true]
     -   TargetManagerName: CSVFileTargetManager
         TargetManagerAcquireParameters: 
             FileURI: hosts.csv
