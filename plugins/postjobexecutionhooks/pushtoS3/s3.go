@@ -12,6 +12,7 @@ import (
 
 	"github.com/9elements/contest-client/pkg/client"
 	githubAPI "github.com/9elements/contest-client/pkg/github"
+	slackAPI "github.com/9elements/contest-client/pkg/slack"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -96,29 +97,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 				// Go through the report and retrieve the binaryURL from the uploadfile teststep
 				jobStatus = resp.Data.Status.JobReport.RunReports
 				binaryURL = resp.Data.Status.RunStatus.TestStatuses
-				for _, teststatus := range binaryURL {
-					if teststatus.TestName == "push coreboot binary to S3" {
-						var TestStepStatuses = teststatus.TestStepStatuses
-						for _, teststepstatus := range TestStepStatuses {
-							if teststepstatus.TestStepCoordinates.TestStepName == "UploadFile" {
-								var TargetStatuses = teststepstatus.TargetStatuses
-								for _, targetstatus := range TargetStatuses {
-									for _, events := range targetstatus.Events {
-										if events.Data.EventName == "CmdStdout" {
-											var url url
-											var status_desc = jobName + " binary:"
-											json.Unmarshal(*events.Data.Payload, &url)
-											err := githubAPI.EditGithubStatus(ctx, "success", url.Msg, status_desc, jobSha)
-											if err != nil {
-												fmt.Println("GithubStatus could not be edited to status: success", err)
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
 
 				// Go through all final reports
 				for _, finalreports := range jobStatus {
@@ -171,14 +149,70 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 						// Adapt the Github Commit status depending on the jobResults
 						status_desc := jobName + " test-result:"
 						if matcherr {
+							for _, teststatus := range binaryURL {
+								if teststatus.TestName == "push coreboot binary to S3" {
+									var TestStepStatuses = teststatus.TestStepStatuses
+									for _, teststepstatus := range TestStepStatuses {
+										if teststepstatus.TestStepCoordinates.TestStepName == "UploadFile" {
+											var TargetStatuses = teststepstatus.TargetStatuses
+											for _, targetstatus := range TargetStatuses {
+												for _, events := range targetstatus.Events {
+													if events.Data.EventName == "CmdStdout" {
+														var url url
+														var status_desc = jobName + " binary:"
+														json.Unmarshal(*events.Data.Payload, &url)
+														err := githubAPI.EditGithubStatus(ctx, "error", url.Msg, status_desc, jobSha)
+														if err != nil {
+															fmt.Println("GithubStatus could not be edited to status: error", err)
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
 							err := githubAPI.EditGithubStatus(ctx, "error", fileurl, status_desc, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
 							}
+							msg := "Error in commit " + jobSha + ". Something goes wrong in the test with the jobName: " + jobName
+							err = slackAPI.MsgToSlack(msg)
+							if err != nil {
+								fmt.Println("Error could not posted to slack: error", err)
+							}
 						} else if matchsucceed && !matcherr {
+							for _, teststatus := range binaryURL {
+								if teststatus.TestName == "push coreboot binary to S3" {
+									var TestStepStatuses = teststatus.TestStepStatuses
+									for _, teststepstatus := range TestStepStatuses {
+										if teststepstatus.TestStepCoordinates.TestStepName == "UploadFile" {
+											var TargetStatuses = teststepstatus.TargetStatuses
+											for _, targetstatus := range TargetStatuses {
+												for _, events := range targetstatus.Events {
+													if events.Data.EventName == "CmdStdout" {
+														var url url
+														var status_desc = jobName + " binary:"
+														json.Unmarshal(*events.Data.Payload, &url)
+														err := githubAPI.EditGithubStatus(ctx, "success", url.Msg, status_desc, jobSha)
+														if err != nil {
+															fmt.Println("GithubStatus could not be edited to status: success", err)
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
 							err := githubAPI.EditGithubStatus(ctx, "success", fileurl, status_desc, jobSha)
 							if err != nil {
 								fmt.Println("GithubStatus could not be edited to status: error", err)
+							}
+							msg := "The test with the jobName '" + jobName + "' was successful."
+							err = slackAPI.MsgToSlack(msg)
+							if err != nil {
+								fmt.Println("Error could not posted to slack: error", err)
 							}
 						}
 					}
