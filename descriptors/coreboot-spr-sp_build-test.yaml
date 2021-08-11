@@ -1,4 +1,4 @@
-JobName: Coreboot binary to S3
+JobName: Build Test
 Runs: 1
 RunInterval: 60s
 Tags: ["coreboot", "binary", "rom"]

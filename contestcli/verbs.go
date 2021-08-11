@@ -36,24 +36,24 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			log.Printf("could not parse the jobtemplate: %s\n", err)
 		}
 
-		//Updating the github status to pending
-		res := githubAPI.EditGithubStatus(ctx, "pending", "",
-			*cd.Flags.FlagJobTemplate[i]+" test-result:", webhookData[0])
-		if res != nil {
-			log.Printf("could not change the github status: %s\n", res)
-		}
-
 		//adapt the jobDescriptor based on the webhookdata
-		jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
+		jobName, jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
 		if errorr != nil {
 			fmt.Printf("could not change the job template: %+v\n", err)
+		}
+
+		//Updating the github status to pending
+		res := githubAPI.EditGithubStatus(ctx, "pending", "",
+			jobName+". Test-Result:", webhookData[0])
+		if res != nil {
+			log.Printf("could not change the github status: %s\n", res)
 		}
 
 		//kick off the generated Job
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
 			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
-			err := githubAPI.EditGithubStatus(ctx, "error", "", *cd.Flags.FlagJobTemplate[i]+" test-result:", webhookData[0])
+			err := githubAPI.EditGithubStatus(ctx, "error", "", jobName+". Test-Result:", webhookData[0])
 			if err != nil {
 				fmt.Println("GithubStatus could not be edited to status: error", err)
 			}
@@ -66,7 +66,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 		// Filling the map with job data for postjobexecutionhooks
 		var jobNameSha [2]string
-		jobNameSha[0] = *cd.Flags.FlagJobTemplate[i]
+		jobNameSha[0] = jobName
 		jobNameSha[1] = webhookData[0]
 		jobs[int(startResp.Data.JobID)] = jobNameSha
 
@@ -95,22 +95,23 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 }
 
 //unmarshal the data from the template file then change the specific value and marshal it back to specific format
-func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, error) {
+func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) (string, []byte, error) {
 	var jobDesc map[string]interface{}
 
 	//check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
 	if !YAML {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := json.Unmarshal(data, &jobDesc); err != nil {
-			return nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
+			return "", nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
 		}
 		// Diving into the YAML structure to get to the parameter we want to edit
+		jobName := jobDesc["JobName"]
 		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
 		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
 		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return nil, fmt.Errorf("JSON File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
 		} else {
 			switch val := steps.(type) {
 			case []interface{}:
@@ -144,23 +145,24 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 		// marshal the jobDescriptor back to JSON format
 		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
+			return "", nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
 		}
 		// Return the adapted jobDescriptor
-		return jobDescJSON, nil
+		return jobName.(string), jobDescJSON, nil
 
 	} else {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
-			return nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
+			return "", nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
 		}
 		// Diving into the JSON structure to get to the parameter we want to edit
+		jobName := jobDesc["JobName"]
 		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
 		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
 		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return nil, fmt.Errorf("YAML File is not valid for this usecase %w", ok)
+			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
 		} else {
 			switch val := steps.(type) {
 			case []interface{}:
@@ -194,9 +196,9 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) ([]byte, 
 		// marshal the jobDescriptor into JSON format
 		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
+			return "", nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
 		}
 		// Return the adapted jobDescriptor
-		return jobDescJSON, nil
+		return jobName.(string), jobDescJSON, nil
 	}
 }

@@ -109,14 +109,16 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 						// Within this, the tests will be checked, if they were successful or not
 						switch statustype := status.(type) {
 						case string:
-							matcherror, _ := regexp.MatchString("does not pass", status.(string))
+							r, _ := regexp.Compile("does not pass")
+							matcherror := r.MatchString(status.(string))
 							if matcherror {
 								if !matcherr {
 									matcherr = matcherror
 								}
 								fmt.Printf("the test with JobID %d does not succeeded!\n", jobID)
 							}
-							matchsuccess, _ := regexp.MatchString("passes", status.(string))
+							r, _ = regexp.Compile("passes")
+							matchsuccess := r.MatchString(status.(string))
 							if matchsuccess {
 								if !matchsucceed {
 									matchsucceed = matchsuccess
@@ -125,14 +127,16 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 							}
 						case interface{}:
 							for _, item := range status.([]interface{}) {
-								matcherror, _ := regexp.MatchString("does not pass", item.(string))
+								r, _ := regexp.Compile("does not pass")
+								matcherror := r.MatchString(item.(string))
 								if matcherror {
 									if !matcherr {
 										matcherr = matcherror
 									}
 									fmt.Printf("the test with JobID %d does not succeeded!\n", jobID)
 								}
-								matchsuccess, _ := regexp.MatchString("passes", item.(string))
+								r, _ = regexp.Compile("passes")
+								matchsuccess := r.MatchString(item.(string))
 								if matchsuccess {
 									if !matchsucceed {
 										matchsucceed = matchsuccess
@@ -147,7 +151,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 							continue
 						}
 						// Adapt the Github Commit status depending on the jobResults
-						status_desc := jobName + " test-result:"
+						status_desc := jobName + ". Test-Result:"
 						if matcherr {
 							for _, teststatus := range binaryURL {
 								if teststatus.TestName == "push coreboot binary to S3" {
@@ -159,7 +163,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 												for _, events := range targetstatus.Events {
 													if events.Data.EventName == "CmdStdout" {
 														var url url
-														var status_desc = jobName + " binary:"
+														var status_desc = jobName + ". Binary in S3 Bucket:"
 														json.Unmarshal(*events.Data.Payload, &url)
 														err := githubAPI.EditGithubStatus(ctx, "error", url.Msg, status_desc, jobSha)
 														if err != nil {
@@ -192,7 +196,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 												for _, events := range targetstatus.Events {
 													if events.Data.EventName == "CmdStdout" {
 														var url url
-														var status_desc = jobName + " binary:"
+														var status_desc = jobName + ". Binary in S3 Bucket:"
 														json.Unmarshal(*events.Data.Payload, &url)
 														err := githubAPI.EditGithubStatus(ctx, "success", url.Msg, status_desc, jobSha)
 														if err != nil {
