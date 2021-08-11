@@ -4,6 +4,27 @@ RunInterval: 60s
 Tags: ["coreboot", "binary", "rom"]
 TestDescriptors:
     -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters: 
+            FileURI: hosts.csv
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Cleanup
+            Steps:
+                -   name: cmd
+                    label: Delete local Files coreboot
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Delete local Files assets
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
+    -   TargetManagerName: CSVFileTargetManager
         TargetManagerAcquireParameters:
             FileURI: hosts.csv
             Shuffle: true
@@ -91,27 +112,6 @@ TestDescriptors:
                         path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
                         filename: ["coreboot.rom"]
                         emit_stdout: [true]
-    -   TargetManagerName: CSVFileTargetManager
-        TargetManagerAcquireParameters: 
-            FileURI: hosts.csv
-            HostPrefixes: ["yv3-evt-slot"]
-            MinNumberDevices: 1
-            MaxNumberDevices: 1
-        TargetManagerReleaseParameters:
-        TestFetcherName: literal
-        TestFetcherFetchParameters:
-            TestName: Cleanup
-            Steps:
-                -   name: cmd
-                    label: Delete local Files coreboot
-                    parameters:
-                        executable: [rm]
-                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                -   name: cmd
-                    label: Delete local Files assets
-                    parameters:
-                        executable: [rm]
-                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
 Reporting:
     RunReporters:
         -   name: TargetSuccess
