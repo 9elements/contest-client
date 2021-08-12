@@ -111,6 +111,7 @@ TestDescriptors:
                     parameters:
                         path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
                         filename: ["coreboot.rom"]
+                        compress: [true]
                         emit_stdout: [true]
 Reporting:
     RunReporters:
