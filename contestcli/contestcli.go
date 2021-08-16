@@ -101,7 +101,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 	}
 
 	//creating a channel with a buffer size of 10, it's big enough
-	webhookData := make(chan []string, 10)
+	webhookData := make(chan WebhookData, 10)
 
 	//starting go routine to run a webhooklistener
 	go webhook(webhookData)

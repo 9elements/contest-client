@@ -21,7 +21,7 @@ import (
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData []string) (map[int][2]string, error) {
+	webhookData []WebhookData) (map[int][2]string, error) {
 
 	jobs := make(map[int][2]string, len(cd.Flags.FlagJobTemplate))
 
@@ -95,7 +95,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 }
 
 //unmarshal the data from the template file then change the specific value and marshal it back to specific format
-func ChangeJobDescriptor(data []byte, YAML bool, webhookData []string) (string, []byte, error) {
+func ChangeJobDescriptor(data []byte, YAML bool, webhookData []WebhookData) (string, []byte, error) {
 	var jobDesc map[string]interface{}
 
 	//check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
