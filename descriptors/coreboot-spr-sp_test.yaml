@@ -18,7 +18,7 @@ TestDescriptors:
                 -   name: UploadFile
                     label: upload coreboot binary
                     parameters:
-                        path: ["/tmp/coreboot-spr-sp-slot3/build/coreboot.rom"]   
+                        path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
                         filename: ["coreboot.rom"]
                         emit_stdout: [true]
                         compress: [true]

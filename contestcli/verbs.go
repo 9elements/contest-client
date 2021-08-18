@@ -21,7 +21,7 @@ import (
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData []WebhookData) (map[int][2]string, error) {
+	webhookData WebhookData) (map[int][2]string, error) {
 
 	jobs := make(map[int][2]string, len(cd.Flags.FlagJobTemplate))
 
@@ -44,7 +44,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 		//Updating the github status to pending
 		res := githubAPI.EditGithubStatus(ctx, "pending", "",
-			jobName+". Test-Result:", webhookData[0])
+			jobName+". Test-Result:", webhookData.headSHA)
 		if res != nil {
 			log.Printf("could not change the github status: %s\n", res)
 		}
@@ -53,7 +53,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
 			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
-			err := githubAPI.EditGithubStatus(ctx, "error", "", jobName+". Test-Result:", webhookData[0])
+			err := githubAPI.EditGithubStatus(ctx, "error", "", jobName+". Test-Result:", webhookData.headSHA)
 			if err != nil {
 				fmt.Println("GithubStatus could not be edited to status: error", err)
 			}
@@ -67,7 +67,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		// Filling the map with job data for postjobexecutionhooks
 		var jobNameSha [2]string
 		jobNameSha[0] = jobName
-		jobNameSha[1] = webhookData[0]
+		jobNameSha[1] = webhookData.headSHA
 		jobs[int(startResp.Data.JobID)] = jobNameSha
 
 		// Create Json Body for API Request to set a status for the started Job
@@ -79,8 +79,9 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		if err != nil {
 			fmt.Println("Could not parse data to json format.")
 		}
-		// Add the job to the Api db
-		resp, err := http.Post("http://10.93.193.82:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data)) //HTTP Post all to the API
+		// Add the job to the Api DB
+		// TODO: Add the Address to the config!
+		resp, err := http.Post("http://10.93.193.82:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data))
 
 		if err != nil {
 			fmt.Println("Could not post data to API.")
@@ -95,7 +96,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 }
 
 //unmarshal the data from the template file then change the specific value and marshal it back to specific format
-func ChangeJobDescriptor(data []byte, YAML bool, webhookData []WebhookData) (string, []byte, error) {
+func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) (string, []byte, error) {
 	var jobDesc map[string]interface{}
 
 	//check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
@@ -126,7 +127,7 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []WebhookData) (str
 									for k, v := range val {
 										if k == "args" {
 											args := v.([]interface{})
-											args[1] = webhookData[0] // Edit the commit SHA
+											args[1] = webhookData.headSHA // Edit the commit SHA
 										}
 									}
 								default:
@@ -177,7 +178,7 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData []WebhookData) (str
 									for k, v := range val {
 										if k == "args" {
 											args := v.([]interface{})
-											args[1] = webhookData[0] // Edit the commit SHA
+											args[1] = webhookData.headSHA // Edit the commit SHA
 										}
 									}
 								default:

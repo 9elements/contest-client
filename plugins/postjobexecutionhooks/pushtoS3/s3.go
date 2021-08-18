@@ -65,15 +65,15 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 
 		// If Api requst was successful
 		if resp.StatusCode == http.StatusOK {
+			var Status bool
 			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			json.Unmarshal(bodyBytes, &Status)
 			if err != nil {
 				fmt.Println("Error reading the HTTP response", err)
 			}
-			// bodyString contains the job status (true = job finished, false = job still running)
-			bodyString := string(bodyBytes)
-
+			// Status contains the job status (true = job finished, false = job still running)
 			// If the job is finished
-			if bodyString == "true" {
+			if Status {
 				// Than retrieve the jobReport
 				resp, err := transport.Status(context.Background(), *cd.Flags.FlagRequestor, types.JobID(jobID))
 				if err != nil {
@@ -105,6 +105,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 					//Go through all report in the final reports
 					for _, reports := range finalreports {
 						var status = reports.Data
+						fmt.Println("reports: ", reports)
 						// Switch Case because the Data can be either a string or an interface{}
 						// Within this, the tests will be checked, if they were successful or not
 						switch statustype := status.(type) {
@@ -142,7 +143,6 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 										matchsucceed = matchsuccess
 									}
 									fmt.Printf("the test with JobID %d succeeded!\n", jobID)
-
 								}
 							}
 						// Skip if the data is neither a string nor an interface{}
