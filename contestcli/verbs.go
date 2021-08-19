@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,9 +14,14 @@ import (
 
 	"github.com/9elements/contest-client/pkg/client"
 	githubAPI "github.com/9elements/contest-client/pkg/github"
-	"github.com/Navops/yaml"
 	"github.com/facebookincubator/contest/pkg/transport"
+	"gopkg.in/yaml.v2"
 )
+
+// Struct that contains all possible template parameters
+type templatedata struct {
+	SHA string
+}
 
 /* Function run runs the main functionility of the contest-client.
    It creates new jobDescriptors and kicks off new jobs.
@@ -25,7 +31,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 	jobs := make(map[int][2]string, len(cd.Flags.FlagJobTemplate))
 
-	//iterate over all JobTemplates that are defined in the clientconfig.json
+	// Iterate over all JobTemplates that are defined in the clientconfig.json
 	for i := 0; i < len(cd.Flags.FlagJobTemplate); i++ {
 		//Open the configfile
 		filepath, _ := filepath.Abs("descriptors/")
@@ -36,20 +42,22 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			log.Printf("could not parse the jobtemplate: %s\n", err)
 		}
 
-		//adapt the jobDescriptor based on the webhookdata
-		jobName, jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
+		jobName, err := RetrieveJobName(templateDescription, *cd.Flags.FlagYAML)
+
+		// Adapt the jobDescriptor based on the webhookdata
+		jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
 		if errorr != nil {
 			fmt.Printf("could not change the job template: %+v\n", err)
 		}
 
-		//Updating the github status to pending
+		// Updating the github status to pending
 		res := githubAPI.EditGithubStatus(ctx, "pending", "",
 			jobName+". Test-Result:", webhookData.headSHA)
 		if res != nil {
 			log.Printf("could not change the github status: %s\n", res)
 		}
 
-		//kick off the generated Job
+		// Kick off the generated Job
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
 		if err != nil {
 			fmt.Printf("could not send the Job with the jobDesc: %s\n", *cd.Flags.FlagJobTemplate[i])
@@ -95,111 +103,43 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 	return jobs, nil
 }
 
-//unmarshal the data from the template file then change the specific value and marshal it back to specific format
-func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) (string, []byte, error) {
-	var jobDesc map[string]interface{}
+// Parse the jobDescriptor and substitute all template with the webhook data
+func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) ([]byte, error) {
+	var buf bytes.Buffer
+	datastring := string(data)
+	jobDescData := templatedata{webhookData.headSHA}
+	tmpl, err := template.New("jobDesc").Delims("[[", "]]").Parse(datastring)
+	if err != nil {
+		return buf.Bytes(), fmt.Errorf("Parse the data for templates: %t", err)
+	}
+	err = tmpl.Execute(&buf, jobDescData)
+	if err != nil {
+		return buf.Bytes(), fmt.Errorf("Template substitution failed: %t", err)
+	}
+	return buf.Bytes(), nil
+}
 
-	//check if the file is YAML or JSON and depending on it Unmarshal it, adapt it and marshal it again
+// Unmarshal the data from the template file and retrieve the jobName
+func RetrieveJobName(data []byte, YAML bool) (string, error) {
+	var jobDesc map[string]string
+	// Check if the file is YAML or JSON and unmarshal it
 	if !YAML {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := json.Unmarshal(data, &jobDesc); err != nil {
 			return "", nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
 		}
-		// Diving into the YAML structure to get to the parameter we want to edit
+		// Retrieve the jobName from the JSON file
 		jobName := jobDesc["JobName"]
-		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
-		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
-		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return "", nil, fmt.Errorf("JSON File is not valid for this usecase %t", ok)
-		} else {
-			switch val := steps.(type) {
-			case []interface{}:
-				for _, v := range val {
-					switch val := v.(type) {
-					case map[string]interface{}:
-						for k, v := range val {
-							// If the label of the test step we want to edit is correct, we will edit the arguements
-							if k == "label" && v == "Checkout to the right commit" {
-								switch val := val["parameters"].(type) {
-								case map[string]interface{}:
-									for k, v := range val {
-										if k == "args" {
-											args := v.([]interface{})
-											args[1] = webhookData.headSHA // Edit the commit SHA
-										}
-									}
-								default:
-									fmt.Println("JSON File has wrong format")
-								}
-							}
-						}
-					default:
-						fmt.Println("JSON File has wrong format")
-					}
-				}
-			default:
-				fmt.Println("JSON File has wrong format")
-			}
-		}
-		// marshal the jobDescriptor back to JSON format
-		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
-		}
-		// Return the adapted jobDescriptor
-		return jobName.(string), jobDescJSON, nil
-
+		// Return the jobName
+		return jobName, nil
 	} else {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
 			return "", nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
 		}
-		// Diving into the JSON structure to get to the parameter we want to edit
+		// Retrieve the jobName from the YAML file
 		jobName := jobDesc["JobName"]
-		if testD, ok := jobDesc["TestDescriptors"].([]interface{}); !ok {
-			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
-		} else if testF, ok := testD[0].(map[string]interface{})["TestFetcherFetchParameters"]; !ok {
-			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
-		} else if steps, ok := testF.(map[string]interface{})["Steps"]; !ok {
-			return "", nil, fmt.Errorf("YAML File is not valid for this usecase %t", ok)
-		} else {
-			switch val := steps.(type) {
-			case []interface{}:
-				for _, v := range val {
-					switch val := v.(type) {
-					case map[string]interface{}:
-						for k, v := range val {
-							// If the label of the test step we want to edit is correct, we will edit the arguements
-							if k == "label" && v == "Checkout to the right commit" {
-								switch val := val["parameters"].(type) {
-								case map[string]interface{}:
-									for k, v := range val {
-										if k == "args" {
-											args := v.([]interface{})
-											args[1] = webhookData.headSHA // Edit the commit SHA
-										}
-									}
-								default:
-									fmt.Println("YAML File has wrong format")
-								}
-							}
-						}
-					default:
-						fmt.Println("YAML File has wrong format")
-					}
-				}
-			default:
-				fmt.Println("YAML File has wrong format")
-			}
-		}
-		// marshal the jobDescriptor into JSON format
-		jobDescJSON, err := json.MarshalIndent(jobDesc, "", "    ")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to serialize job descriptor to JSON: %w", err)
-		}
-		// Return the adapted jobDescriptor
-		return jobName.(string), jobDescJSON, nil
+		// Return the jobName
+		return jobName.(string), nil
 	}
 }
