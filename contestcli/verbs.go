@@ -27,26 +27,29 @@ type templatedata struct {
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData WebhookData) (map[int][2]string, error) {
+	webhookData WebhookData) (map[int]client.RunData, error) {
 
-	jobs := make(map[int][2]string, len(cd.Flags.FlagJobTemplate))
+	jobs := make(map[int]client.RunData, len(cd.Flags.FlagJobTemplate))
 
 	// Iterate over all JobTemplates that are defined in the clientconfig.json
 	for i := 0; i < len(cd.Flags.FlagJobTemplate); i++ {
-		//Open the configfile
+		// Open the configfile
 		filepath, _ := filepath.Abs("descriptors/")
 		filepathtemplate := filepath + "/" + *cd.Flags.FlagJobTemplate[i]
-		//parse and decode the json/yaml file
+		// Parse and decode the json/yaml file
 		templateDescription, err := ioutil.ReadFile(filepathtemplate)
 		if err != nil {
 			log.Printf("could not parse the jobtemplate: %s\n", err)
 		}
 
+		// Retrieve the jobName for further usages
 		jobName, err := RetrieveJobName(templateDescription, *cd.Flags.FlagYAML)
-
+		if err != nil {
+			fmt.Printf("could not retrieve the job name: %+v\n", err)
+		}
 		// Adapt the jobDescriptor based on the webhookdata
-		jobDesc, errorr := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
-		if errorr != nil {
+		jobDesc, err := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
+		if err != nil {
 			fmt.Printf("could not change the job template: %+v\n", err)
 		}
 
@@ -73,10 +76,8 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
-		var jobNameSha [2]string
-		jobNameSha[0] = jobName
-		jobNameSha[1] = webhookData.headSHA
-		jobs[int(startResp.Data.JobID)] = jobNameSha
+		jobdata := client.RunData{JobName: jobName, JobSHA: webhookData.headSHA}
+		jobs[int(startResp.Data.JobID)] = jobdata
 
 		// Create Json Body for API Request to set a status for the started Job
 		data := map[string]interface{}{
@@ -105,17 +106,22 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 // Parse the jobDescriptor and substitute all template with the webhook data
 func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) ([]byte, error) {
+	// Create buffer to pass the adapted data
 	var buf bytes.Buffer
 	datastring := string(data)
+	// Create the data that should be substitute
 	jobDescData := templatedata{webhookData.headSHA}
+	// Parse the file data
 	tmpl, err := template.New("jobDesc").Delims("[[", "]]").Parse(datastring)
 	if err != nil {
 		return buf.Bytes(), fmt.Errorf("Parse the data for templates: %t", err)
 	}
+	// Substitute all templates with jobDescData and write it to buf
 	err = tmpl.Execute(&buf, jobDescData)
 	if err != nil {
 		return buf.Bytes(), fmt.Errorf("Template substitution failed: %t", err)
 	}
+	// Return buf as byte array
 	return buf.Bytes(), nil
 }
 
@@ -126,7 +132,7 @@ func RetrieveJobName(data []byte, YAML bool) (string, error) {
 	if !YAML {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := json.Unmarshal(data, &jobDesc); err != nil {
-			return "", nil, fmt.Errorf("failed to parse JSON job descriptor: %w", err)
+			return "", fmt.Errorf("failed to parse JSON job descriptor: %w", err)
 		}
 		// Retrieve the jobName from the JSON file
 		jobName := jobDesc["JobName"]
@@ -135,11 +141,11 @@ func RetrieveJobName(data []byte, YAML bool) (string, error) {
 	} else {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
-			return "", nil, fmt.Errorf("failed to parse YAML job descriptor: %w", err)
+			return "", fmt.Errorf("failed to parse YAML job descriptor: %w", err)
 		}
 		// Retrieve the jobName from the YAML file
 		jobName := jobDesc["JobName"]
 		// Return the jobName
-		return jobName.(string), nil
+		return jobName, nil
 	}
 }

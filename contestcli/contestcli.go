@@ -19,18 +19,18 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
-//define flags
+// Define flags
 var (
 	flagSet    *flag.FlagSet
 	flagConfig *string
 )
 
-//init the flags
+// Init the flags
 func initFlags(cmd string) {
 	flagSet = flag.NewFlagSet(cmd, flag.ContinueOnError)
 	flagConfig = flagSet.StringP("config", "c", "clientconfig.json", "Path to the configuration file that describes the client")
 
-	// define flag usage
+	// Define flag usage
 	flagSet.Usage = func() {
 		fmt.Fprintf(flagSet.Output(),
 			`Usage:
@@ -47,7 +47,7 @@ Flags:
 }
 
 func CLIMain(cmd string, args []string, stdout io.Writer) error {
-	//init the flags
+	// Init the flags
 	initFlags(cmd)
 	if err := flagSet.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -56,14 +56,14 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		return err
 	}
 
-	//open the configfile
+	// Open the configfile
 	configFile, err := os.Open(*flagConfig)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer configFile.Close()
 
-	//parse and decode the json configfile
+	// Parse and decode the json configfile
 	configDescription, _ := ioutil.ReadAll(configFile)
 	var cd client.ClientDescriptor
 	if err := json.Unmarshal([]byte(configDescription), &cd); err != nil {
@@ -71,7 +71,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		fmt.Printf("content is: %+v\n", cd)
 	}
 
-	//setting defaults to empty config entries
+	// Setting defaults to empty config entries
 	if *cd.Flags.FlagAddr == "" {
 		*cd.Flags.FlagAddr = "http://localhost:8080"
 	}
@@ -82,17 +82,17 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		*cd.Flags.FlagLogLevel = "debug"
 	}
 
-	//create logLevel
+	// Create logLevel
 	logLevel, err := logger.ParseLogLevel(*cd.Flags.FlagLogLevel)
 	if err != nil {
 		return err
 	}
 
-	//create context
+	// Create context
 	ctx, cancel := xcontext.WithCancel(logrusctx.NewContext(logLevel, logging.DefaultOptions()...))
 	defer cancel()
 
-	//initialize the plugin registry
+	// Initialize the plugin registry
 	clientPluginRegistry := clientpluginregistry.NewClientPluginRegistry(ctx)
 	clientplugins.Init(clientPluginRegistry, ctx.Logger())
 
@@ -100,48 +100,49 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		return err
 	}
 
-	//creating a channel with a buffer size of 10, it's big enough
+	// Creating a channel with a buffer size of 10, it's big enough
 	webhookData := make(chan WebhookData, 10)
 
-	//starting go routine to run a webhooklistener
+	// Starting go routine to run a webhooklistener
 	go webhook(webhookData)
 
-	//go over all PreJobExecutionHooks for every webhook run it and than go over all PostJobExecutionHooks
+	// Iterate over every incoming webhook
 	for nextWebhookData := range webhookData {
+		// Iterate over all PreJobExecution plugins
 		for _, eh := range cd.PreJobExecutionHooks {
-			//validate the current plugin
+			// Validate the current plugin
 			if err := eh.PreValidate(); err != nil {
 				return err
 			}
-			//register the current plugin
+			// Register the current plugin
 			bundlePreExecutionHook, err := clientPluginRegistry.NewPreJobExecutionHookBundle(ctx, eh)
 			if err != nil {
 				return err
 			}
-			//run the plugin
+			// Run the plugin
 			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}); err != nil {
 				return err
 			}
 		}
-		//run the job and receive the
-		var rundata map[int][2]string
+		// Run the job and receive the rundata
+		var rundata map[int]client.RunData
 		rundata, err := run(ctx, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, stdout, nextWebhookData)
 		if err != nil {
 			fmt.Println("Running the job failed. Err: %w. You should probably check the connection and restart the test.", err)
 			continue
 		}
-
+		// Iterate over all PostJobExecution plugins
 		for _, eh := range cd.PostJobExecutionHooks {
-			//validate the current plugin
+			// Validate the current plugin
 			if err := eh.PostValidate(); err != nil {
 				return err
 			}
-			//register the current plugin
+			// Register the current plugin
 			bundlePostExecutionHook, err := clientPluginRegistry.NewPostJobExecutionHookBundle(ctx, eh)
 			if err != nil {
 				return err
 			}
-			//run the plugin
+			// Run the plugin
 			if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr}, rundata); err != nil {
 				return err
 			}
