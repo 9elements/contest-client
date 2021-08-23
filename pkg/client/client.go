@@ -74,6 +74,12 @@ type PostHookExecutionBundle struct {
 	Parameters            interface{}
 }
 
+// RunData cointains data that can be used to hand over data through the program flow
+type RunData struct {
+	JobName string
+	JobSHA  string
+}
+
 // Validate performs sanity check on the ExecutionHookDescriptor
 func (d *ClientDescriptor) Validate() error {
 	if len(d.PreJobExecutionHooks) == 0 {
@@ -109,6 +115,6 @@ type PreJobExecutionHooks interface {
 
 type PostJobExecutionHooks interface {
 	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
-		transport transport.Transport, rundata map[int][2]string) (interface{}, error)
+		transport transport.Transport, rundata map[int]RunData) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
