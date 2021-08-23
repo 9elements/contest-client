@@ -15,6 +15,7 @@ import (
 	"github.com/9elements/contest-client/pkg/client"
 	githubAPI "github.com/9elements/contest-client/pkg/github"
 	"github.com/facebookincubator/contest/pkg/transport"
+	"github.com/icza/dyno"
 	"gopkg.in/yaml.v2"
 )
 
@@ -48,9 +49,23 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			fmt.Printf("could not retrieve the job name: %+v\n", err)
 		}
 		// Adapt the jobDescriptor based on the webhookdata
-		jobDesc, err := ChangeJobDescriptor(templateDescription, *cd.Flags.FlagYAML, webhookData)
+		jobDesc, err := ChangeJobDescriptor(templateDescription, webhookData)
 		if err != nil {
 			fmt.Printf("could not change the job template: %+v\n", err)
+		}
+		// If template file is YAML convert it to JSON
+		if *cd.Flags.FlagYAML {
+			// Unmarshal the data in a map
+			var body interface{}
+			if err := yaml.Unmarshal(jobDesc, &body); err != nil {
+				fmt.Printf("failed to parse YAML job descriptor: %+v", err)
+			}
+			body = dyno.ConvertMapI2MapS(body)
+			// then marshal the structure back to JSON
+			jobDesc, err = json.MarshalIndent(body, "", "    ")
+			if err != nil {
+				fmt.Printf("failed to serialize job descriptor to JSON: %+v", err)
+			}
 		}
 
 		// Updating the github status to pending
@@ -106,7 +121,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 }
 
 // Parse the jobDescriptor and substitute all template with the webhook data
-func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) ([]byte, error) {
+func ChangeJobDescriptor(data []byte, webhookData WebhookData) ([]byte, error) {
 	// Create buffer to pass the adapted data
 	var buf bytes.Buffer
 	datastring := string(data)
