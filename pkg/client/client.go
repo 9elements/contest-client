@@ -41,7 +41,9 @@ type PostJobExecutionHookParameters map[string][]ExecutionHookParam
 
 type Flags struct {
 	// Flag-related parameters
-	FlagAddr        *string   //ConTest server [scheme://]host:port[/basepath] to connect to
+	FlagAddr        *string   //ConTest server [scheme://]host to connect to
+	FlagPortServer  *string   //Port that the server is using ":port"
+	FlagPortAPI     *string   //Port that the API is using ":port"
 	FlagRequestor   *string   //Identifier of the requestor of the API call
 	FlagWait        *bool     //After starting a job, wait for it to finish, and exit 0 only if it is successful
 	FlagYAML        *bool     //JSON or YAML

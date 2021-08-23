@@ -90,7 +90,8 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 		// Add the job to the Api DB
 		// TODO: Add the Address to the config!
-		resp, err := http.Post("http://10.93.193.82:3005/addjobstatus/", "application/json", bytes.NewBuffer(json_data))
+		addr := *cd.Flags.FlagAddr + *cd.Flags.FlagPortAPI + "/addjobstatus/"
+		resp, err := http.Post(addr, "application/json", bytes.NewBuffer(json_data))
 
 		if err != nil {
 			fmt.Println("Could not post data to API.")
@@ -114,12 +115,12 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) ([]byt
 	// Parse the file data
 	tmpl, err := template.New("jobDesc").Delims("[[", "]]").Parse(datastring)
 	if err != nil {
-		return buf.Bytes(), fmt.Errorf("Parse the data for templates: %t", err)
+		return buf.Bytes(), fmt.Errorf("parse the data for templates: %t", err)
 	}
 	// Substitute all templates with jobDescData and write it to buf
 	err = tmpl.Execute(&buf, jobDescData)
 	if err != nil {
-		return buf.Bytes(), fmt.Errorf("Template substitution failed: %t", err)
+		return buf.Bytes(), fmt.Errorf("template substitution failed: %t", err)
 	}
 	// Return buf as byte array
 	return buf.Bytes(), nil

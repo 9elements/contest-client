@@ -48,7 +48,7 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 	}
 
 	// Creating link to read out the status of the running job from an api
-	readjobstatus := "http://10.93.193.82:3005/readjobstatus/" + fmt.Sprint(jobID)
+	readjobstatus := *cd.Flags.FlagAddr + *cd.Flags.FlagPortAPI + "/readjobstatus/" + fmt.Sprint(jobID)
 
 	var jobStatus [][]*job.Report
 	var binaryURL []job.TestStatus
