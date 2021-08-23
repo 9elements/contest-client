@@ -66,7 +66,7 @@ TestDescriptors:
                     label: Checkout to the right commit
                     parameters:
                         executable: [git]
-                        args: ["checkout","9elements/master"]
+                        args: ["checkout","[[ .SHA ]]"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
                         expect: ["switching to the right commit"]
                 -   name: cmd
