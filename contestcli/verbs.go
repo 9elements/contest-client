@@ -128,7 +128,7 @@ func ChangeJobDescriptor(data []byte, YAML bool, webhookData WebhookData) ([]byt
 
 // Unmarshal the data from the template file and retrieve the jobName
 func RetrieveJobName(data []byte, YAML bool) (string, error) {
-	var jobDesc map[string]string
+	var jobDesc map[string]interface{}
 	// Check if the file is YAML or JSON and unmarshal it
 	if !YAML {
 		// Retrieve the data and decode it into the jobDesc map
@@ -138,7 +138,7 @@ func RetrieveJobName(data []byte, YAML bool) (string, error) {
 		// Retrieve the jobName from the JSON file
 		jobName := jobDesc["JobName"]
 		// Return the jobName
-		return jobName, nil
+		return jobName.(string), nil
 	} else {
 		// Retrieve the data and decode it into the jobDesc map
 		if err := yaml.Unmarshal(data, &jobDesc); err != nil {
@@ -147,6 +147,6 @@ func RetrieveJobName(data []byte, YAML bool) (string, error) {
 		// Retrieve the jobName from the YAML file
 		jobName := jobDesc["JobName"]
 		// Return the jobName
-		return jobName, nil
+		return jobName.(string), nil
 	}
 }
