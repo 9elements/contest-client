@@ -96,10 +96,6 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 	clientPluginRegistry := clientpluginregistry.NewClientPluginRegistry(ctx)
 	clientplugins.Init(clientPluginRegistry, ctx.Logger())
 
-	if err := cd.Validate(); err != nil {
-		return err
-	}
-
 	// Creating a channel with a buffer size of 10, it's big enough
 	webhookData := make(chan WebhookData, 10)
 

@@ -82,17 +82,6 @@ type RunData struct {
 	JobSHA  string
 }
 
-// Validate performs sanity check on the ExecutionHookDescriptor
-func (d *ClientDescriptor) Validate() error {
-	if len(d.PreJobExecutionHooks) == 0 {
-		return errors.New("PreJobExecutionHook cannot be empty")
-	}
-	if len(d.PostJobExecutionHooks) == 0 {
-		return errors.New("PostJobExecutionHook cannot be empty")
-	}
-	return nil
-}
-
 // PreValidate performs sanity check on the PreExecutionHookContent
 func (d *PreHookDescriptor) PreValidate() error {
 	if d.Name == "" {
