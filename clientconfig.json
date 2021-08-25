@@ -13,14 +13,6 @@
             "flagJobTemplate": ["coreboot-spr-sp_build-test.yaml"]                    
         }
     ,
-    "PreJobExecutionHooks": [
-        {
-            "Name": "noop",
-            "Parameters": {
-                "URI": ""
-            }
-        }
-    ],
     "PostJobExecutionHooks": [
         {
             "Name": "pushtoS3",
