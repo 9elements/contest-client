@@ -73,26 +73,24 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			}
 		}
 
-		// Updating the github status to pending
-		err = githubAPI.EditGithubStatus(ctx, "pending", "", jobName+". Test-Result:", webhookData.headSHA)
-		if err != nil {
-			return nil, fmt.Errorf("could not change the github status: %w", err)
-		}
-
 		// Kick off the generated Job
 		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
+		// If the server is not reachable
 		if err != nil {
-			// If the server is not reachable
-			statusErr := githubAPI.EditGithubStatus(ctx, "error", "", jobName+". Test-Result:", webhookData.headSHA)
-			if statusErr != nil {
-				return nil, fmt.Errorf("could not send the Job to the server: %w. GithubStatus also could not be edited to status: error", err)
-			}
 			return nil, fmt.Errorf("could not send the Job to the server: %w", err)
+
+			// If the server is reachable but something else went wrong
 		} else {
 			// If the job could not executed
 			if int(startResp.Data.JobID) == 0 {
 				return nil, fmt.Errorf("the Job could not executed. Server returned JobID 0! %w", err)
 			}
+		}
+
+		// Updating the github status to pending after the job is kicked off
+		err = githubAPI.EditGithubStatus(ctx, "pending", "", jobName+". Test-Result:", webhookData.headSHA)
+		if err != nil {
+			return nil, fmt.Errorf("could not change the github status: %w", err)
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
