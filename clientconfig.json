@@ -17,7 +17,11 @@
         {
             "Name": "pushtoS3",
             "Parameters": {
-                "URI": ""
+                "s3Region"   : "eu-central-1",
+	            "s3Bucket"   : "coreboot-spr-sp-images",
+	            "s3Path"     : "test_results",
+	            "awsFile"    : "",
+                "awsProfile" : "9e-AWS-Key"
             }
         }
     ]
