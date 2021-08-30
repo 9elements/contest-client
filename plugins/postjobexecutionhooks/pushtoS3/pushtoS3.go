@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"strings"
 
 	"github.com/9elements/contest-client/pkg/client"
@@ -55,7 +56,12 @@ func (n *PushToS3) ValidateParameters(params []byte) (interface{}, error) {
 		}
 		// If AwsFile was set to default
 	} else {
-		err = validateAWS("~/.aws/credentials", s3Param.AwsProfile)
+		usr, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("could not retrieve the current usr: %w", err)
+		}
+		homeDir := usr.HomeDir + "/.aws/credentials"
+		err = validateAWS(homeDir, s3Param.AwsProfile)
 		if err != nil {
 			return nil, err
 		}
