@@ -25,13 +25,13 @@ import (
 
 // Function that upload the job result into a S3 bucket
 func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
-	transport transport.Transport, parameter PushtoS3, jobName string, jobSha string, jobID int) error {
+	transport transport.Transport, parameter PushToS3, jobName string, jobSha string, jobID int) error {
 
 	// Create a single AWS session (we can re use this if we're uploading many files)
-	s, err := session.NewSession(&aws.Config{Region: aws.String(parameter.s3Region),
+	s, err := session.NewSession(&aws.Config{Region: aws.String(parameter.S3Region),
 		Credentials: credentials.NewSharedCredentials(
-			parameter.awsFile,    // awsfile name
-			parameter.awsProfile, // awsprofile name
+			parameter.AwsFile,    // AwsFile name
+			parameter.AwsProfile, // AwsProfile name
 		)})
 	if err != nil {
 		return fmt.Errorf("starting an aws session failed: %w", err)
@@ -83,14 +83,14 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 
 		// Invoke function that uploads the test report to a S3 Bucket
 		// The function returns the name of the file that was uploaded to use it for the resultURL
-		uploadPath, err := AddFileToS3(s, parameter.s3Path, parameter.s3Bucket, respBodyBytes.Bytes(), jobID)
+		uploadPath, err := AddFileToS3(s, parameter.S3Path, parameter.S3Bucket, respBodyBytes.Bytes(), jobID)
 		if err != nil {
 			return fmt.Errorf("could upload the jobReport to the S3 bucket: %w", err)
 		}
 
 		// Creating link where the job report can be downloaded.
 		// This link will be put into the commit message right after the test status
-		resultURL := strings.Join([]string{"https://", parameter.s3Bucket, ".s3.", parameter.s3Region, ".amazonaws.com/", uploadPath}, "")
+		resultURL := strings.Join([]string{"https://", parameter.S3Bucket, ".s3.", parameter.S3Region, ".amazonaws.com/", uploadPath}, "")
 
 		// Go through the report and retrieve the job status
 		jobStatus = statusResp.Data.Status.JobReport.RunReports
@@ -106,12 +106,15 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 				}
 			}
 		}
+
 		// Adapt the Github Commit statuses and Slack Msg depending on the job success
 		// Creating the description for the result status and for the binary status
 		resultDesc := jobName + ". Test-Result:"
 		binaryDesc := jobName + ". Binary in S3 Bucket:"
+
 		// Parse the status resp for the binary url to update the binary status
-		regex := "https://" + parameter.s3Bucket + `[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
+		// TODO: Find a way to differentiate multiple uploads in the report
+		regex := "https://" + parameter.S3Bucket + `[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 		r, _ := regexp.Compile(regex)
 		binaryURL := r.FindString(respBodyBytes.String())
 

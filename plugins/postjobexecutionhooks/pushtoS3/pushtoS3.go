@@ -15,47 +15,47 @@ import (
 // Name defines the name of the preexecutionhook used within the plugin registry
 var Name = "pushtoS3"
 
-// PushtoS3 uploads a file to a specific AWS S3 Bucket
-type PushtoS3 struct {
-	s3Region   string // Defines the S3 server region
-	s3Bucket   string // Defines the S3 bucket name
-	s3Path     string // Defines the S3 bucket upload path
-	awsFile    string // Defines the AWS config file location
-	awsProfile string // Defines the AWS config file profile
+// PushToS3 uploads a file to a specific AWS S3 Bucket
+type PushToS3 struct {
+	S3Region   string // Defines the S3 server region
+	S3Bucket   string // Defines the S3 bucket name
+	S3Path     string // Defines the S3 bucket upload path
+	AwsFile    string // Defines the AWS config file location
+	AwsProfile string // Defines the AWS config file profile
 }
 
 // ValidateRunParameters validates the parameters for the run reporter
-func (n *PushtoS3) ValidateParameters(params []byte) (interface{}, error) {
-	// Retrieve the parameter into PushtoS3 struct
-	var s3Param PushtoS3
+func (n *PushToS3) ValidateParameters(params []byte) (interface{}, error) {
+	// Retrieve the parameter into PushToS3 struct
+	var s3Param PushToS3
 	err := json.Unmarshal(params, &s3Param)
 	if err != nil {
-		return nil, fmt.Errorf("pushToS3 could not unmarshal the parameter while validating them: %w", err)
+		return nil, fmt.Errorf("PushToS3 could not unmarshal the parameter while validating them: %w", err)
 	}
 
-	// Validate the s3Region
-	if s3Param.s3Region == "" {
-		return nil, fmt.Errorf("s3Region cannot be empty: %w", err)
+	// Validate the S3Region
+	if s3Param.S3Region == "" {
+		return nil, fmt.Errorf("S3Region cannot be empty: %w", err)
 	}
-	// Validate the s3Bucket
-	if s3Param.s3Bucket == "" {
-		return nil, fmt.Errorf("s3Bucket cannot be empty: %w", err)
+	// Validate the S3Bucket
+	if s3Param.S3Bucket == "" {
+		return nil, fmt.Errorf("S3Bucket cannot be empty: %w", err)
 	}
-	// Validate the s3Path
-	if s3Param.s3Path == "" {
-		return nil, fmt.Errorf("s3Path cannot be empty: %w", err)
+	// Validate the S3Path
+	if s3Param.S3Path == "" {
+		return nil, fmt.Errorf("S3Path cannot be empty: %w", err)
 	}
 
-	// Validate the awsFile
-	// If awsFile was not set to default
-	if s3Param.awsFile != "" {
-		err = validateAWS(s3Param.awsFile, s3Param.awsProfile)
+	// Validate the AwsFile
+	// If AwsFile was not set to default
+	if s3Param.AwsFile != "" {
+		err = validateAWS(s3Param.AwsFile, s3Param.AwsProfile)
 		if err != nil {
 			return nil, err
 		}
-		// If awsFile was set to default
-	} else if s3Param.awsFile == "" {
-		err = validateAWS("~/.aws/credentials", s3Param.awsProfile)
+		// If AwsFile was set to default
+	} else {
+		err = validateAWS("~/.aws/credentials", s3Param.AwsProfile)
 		if err != nil {
 			return nil, err
 		}
@@ -63,44 +63,44 @@ func (n *PushtoS3) ValidateParameters(params []byte) (interface{}, error) {
 	return s3Param, nil
 }
 
-func validateAWS(file string, awsProfile string) error {
-	// Open the awsFile and parse it as string
+func validateAWS(file string, AwsProfile string) error {
+	// Open the AwsFile and parse it as string
 	_, err := os.Stat(file)
 	if err != nil {
-		return fmt.Errorf("awsFile does not exist: %w", err)
+		return fmt.Errorf("AwsFile does not exist: %w", err)
 	}
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		return fmt.Errorf("could not read the awsFile: %w", err)
+		return fmt.Errorf("could not read the AwsFile: %w", err)
 	}
 	fileString := string(data)
 
-	// Check if the given awsProfile exists or not
-	if awsProfile != "" {
-		exists := strings.Contains(fileString, awsProfile)
+	// Check if the given AwsProfile exists or not
+	if AwsProfile != "" {
+		exists := strings.Contains(fileString, AwsProfile)
 		if !exists {
-			return fmt.Errorf("awsProfile does not exist!")
+			return fmt.Errorf("AwsProfile does not exist")
 		}
-	} else if awsProfile == "" {
+	} else {
 		exists := strings.Contains(fileString, "default")
 		if !exists {
-			return fmt.Errorf("default awsProfile does not exist!")
+			return fmt.Errorf("default AwsProfile does not exist")
 		}
 	}
 	return nil
 }
 
 // Name returns the Name of the reporter
-func (n *PushtoS3) Name() string {
+func (n *PushToS3) Name() string {
 	return Name
 }
 
 // Run invokes PushResultsToS3 for each job, which uploads the job result
-func (n *PushtoS3) Run(ctx context.Context, parameter interface{}, cd client.ClientDescriptor, transport transport.Transport,
+func (n *PushToS3) Run(ctx context.Context, parameter interface{}, cd client.ClientDescriptor, transport transport.Transport,
 	rundata map[int]client.RunData) (interface{}, error) {
 
 	// Retrieving the parameter
-	var s3Param PushtoS3 = parameter.(PushtoS3)
+	var s3Param PushToS3 = parameter.(PushToS3)
 
 	// Iterate over the different jobs
 	for jobID, jobData := range rundata {
@@ -112,7 +112,7 @@ func (n *PushtoS3) Run(ctx context.Context, parameter interface{}, cd client.Cli
 		// Start the main logic of the plugin
 		err := PushResultsToS3(ctx, cd, transport, s3Param, jobName, jobSHA, jobID)
 		if err != nil {
-			return nil, fmt.Errorf("PushResultToS3 did not finished: %w", err)
+			return nil, fmt.Errorf("PushResultToS3 in job %d did not finished: %w", jobID, err)
 		}
 	}
 	return nil, nil
@@ -120,7 +120,7 @@ func (n *PushtoS3) Run(ctx context.Context, parameter interface{}, cd client.Cli
 
 // New builds a new TargetSuccessReporter
 func New() client.PostJobExecutionHooks {
-	return &PushtoS3{}
+	return &PushToS3{}
 }
 
 // Load returns the name and factory which are needed to register the Reporter
