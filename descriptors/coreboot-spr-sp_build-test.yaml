@@ -12,7 +12,7 @@ TestDescriptors:
         TargetManagerReleaseParameters:
         TestFetcherName: literal
         TestFetcherFetchParameters:
-            TestName: Cleanup
+            TestName: Build coreboot and upload it's binary
             Steps:
                 -   name: cmd
                     label: Delete local Files coreboot
@@ -24,18 +24,6 @@ TestDescriptors:
                     parameters:
                         executable: [rm]
                         args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
-    -   TargetManagerName: CSVFileTargetManager
-        TargetManagerAcquireParameters:
-            FileURI: hosts.csv
-            Shuffle: true
-            HostPrefixes: ["yv3-evt-slot"]
-            MinNumberDevices: 1
-            MaxNumberDevices: 1
-        TargetManagerReleaseParameters:
-        TestFetcherName: literal
-        TestFetcherFetchParameters:
-            TestName: push coreboot binary to S3
-            Steps:
                 -   name: cmd
                     label: Cloning coreboot
                     parameters:
@@ -111,8 +99,8 @@ TestDescriptors:
                     parameters:
                         path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
                         filename: ["coreboot.rom"]
-                        compress: [true]
                         emit_stdout: [true]
+                        compress: [true]
 Reporting:
     RunReporters:
         -   name: TargetSuccess
