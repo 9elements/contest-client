@@ -59,16 +59,15 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 	// Open the configfile
 	configFile, err := os.Open(*flagConfig)
 	if err != nil {
-		fmt.Println(err)
+		return fmt.Errorf("unable to open the config file: %w", err)
 	}
 	defer configFile.Close()
 
 	// Parse and decode the json configfile
 	configDescription, _ := ioutil.ReadAll(configFile)
 	var cd client.ClientDescriptor
-	if err := json.Unmarshal([]byte(configDescription), &cd); err != nil {
-		fmt.Printf("unable to decode the config file with err: %v\n", err)
-		fmt.Printf("content is: %+v\n", cd)
+	if err := json.Unmarshal(configDescription, &cd); err != nil {
+		return fmt.Errorf("unable to decode the config file: %w", err)
 	}
 
 	// Setting defaults to empty config entries
