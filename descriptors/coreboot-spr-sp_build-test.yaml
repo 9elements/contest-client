@@ -12,7 +12,7 @@ TestDescriptors:
         TargetManagerReleaseParameters:
         TestFetcherName: literal
         TestFetcherFetchParameters:
-            TestName: Build coreboot and upload it's binary
+            TestName: Build test with binary upload
             Steps:
                 -   name: cmd
                     label: Delete local Files coreboot
