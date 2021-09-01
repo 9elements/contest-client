@@ -28,14 +28,16 @@ func (n *PushtoS3) Name() string {
 
 // RunReport calculates the report to be associated with a job run.
 
-func (n *PushtoS3) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, rundata map[int]client.RunData) (interface{}, error) {
+func (n *PushtoS3) Run(ctx context.Context, parameters interface{}, cd client.ClientDescriptor, transport transport.Transport, rundata []client.RunData) (interface{}, error) {
 	fmt.Println("Started the postjobplugin PushtoS3")
-	for jobID, jobData := range rundata {
-		//retrieve the name of the job
+	for _, jobData := range rundata {
+		// Retrieve the name of the job
 		jobName := jobData.JobName
-		//retrieve the SHA of the commit
+		// Retrieve the SHA of the commit
 		jobSHA := jobData.JobSHA
-		//kicking off the main logic in a go routine
+		// Retrieve the JobID of the job
+		jobID := jobData.JobID
+		// Kicking off the main logic in a go routine
 		go PushResultsToS3(ctx, cd, transport, jobName, jobSHA, jobID)
 	}
 	return nil, nil

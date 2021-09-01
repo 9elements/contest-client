@@ -120,7 +120,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 			}
 		}
 		// Run the job and receive the rundata
-		var rundata map[int]client.RunData
+		var rundata []client.RunData
 		rundata, err := run(ctx, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr + *cd.Flags.FlagPortServer}, stdout, nextWebhookData)
 		if err != nil {
 			fmt.Println("Running the job failed. Err: %w. You should probably check the connection and restart the test.", err)

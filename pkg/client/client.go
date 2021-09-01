@@ -78,6 +78,7 @@ type PostHookExecutionBundle struct {
 
 // RunData cointains data that can be used to hand over data through the program flow
 type RunData struct {
+	JobID   int
 	JobName string
 	JobSHA  string
 }
@@ -106,6 +107,6 @@ type PreJobExecutionHooks interface {
 
 type PostJobExecutionHooks interface {
 	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
-		transport transport.Transport, rundata map[int]RunData) (interface{}, error)
+		transport transport.Transport, rundata []RunData) (interface{}, error)
 	ValidateParameters([]byte) (interface{}, error)
 }
