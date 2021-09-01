@@ -30,7 +30,7 @@ type templatedata struct {
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
 	webhookData WebhookData) ([]client.RunData, error) {
 
-	// Declare a jobs var that contains the rundata that shall be passed
+	// Declare a jobs []struct that contains the rundata that shall be passed
 	var jobs []client.RunData
 
 	// Iterate over all JobTemplates that are defined in the clientconfig.json
