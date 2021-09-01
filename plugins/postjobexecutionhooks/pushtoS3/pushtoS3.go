@@ -103,22 +103,17 @@ func (n *PushToS3) Name() string {
 
 // Run invokes PushResultsToS3 for each job, which uploads the job result
 func (n *PushToS3) Run(ctx context.Context, parameter interface{}, cd client.ClientDescriptor, transport transport.Transport,
-	rundata map[int]client.RunData) (interface{}, error) {
+	rundata []client.RunData) (interface{}, error) {
 
 	// Retrieving the parameter
 	var s3Param PushToS3 = parameter.(PushToS3)
 
 	// Iterate over the different jobs
-	for jobID, jobData := range rundata {
-		// Retrieve the name of the job
-		jobName := jobData.JobName
-		// Retrieve the SHA of the commit
-		jobSHA := jobData.JobSHA
-
+	for _, jobData := range rundata {
 		// Start the main logic of the plugin
-		err := PushResultsToS3(ctx, cd, transport, s3Param, jobName, jobSHA, jobID)
+		err := PushReportsToS3(ctx, cd, transport, s3Param, jobData)
 		if err != nil {
-			return nil, fmt.Errorf("PushResultToS3 in job %d did not finished: %w", jobID, err)
+			return nil, fmt.Errorf("PushResultToS3 in job %d did not finished: %w", jobData.JobID, err)
 		}
 	}
 	return nil, nil

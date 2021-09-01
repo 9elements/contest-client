@@ -18,99 +18,60 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/facebookincubator/contest/pkg/api"
 	"github.com/facebookincubator/contest/pkg/job"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/facebookincubator/contest/pkg/types"
 )
 
-// Function that upload the job result into a S3 bucket
-func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
-	transport transport.Transport, parameter PushToS3, jobName string, jobSha string, jobID int) error {
+// Function that upload the job report into a S3 bucket
+func PushReportsToS3(ctx context.Context, cd client.ClientDescriptor,
+	transport transport.Transport, parameter PushToS3, runData client.RunData) error {
 
 	// Create a single AWS session (we can re use this if we're uploading many files)
-	s, err := session.NewSession(&aws.Config{Region: aws.String(parameter.S3Region),
-		Credentials: credentials.NewSharedCredentials(
-			parameter.AwsFile,    // AwsFile name
-			parameter.AwsProfile, // AwsProfile name
-		)})
+	s, err := CreateAwsSession(parameter)
 	if err != nil {
-		return fmt.Errorf("starting an aws session failed: %w", err)
+		return err
 	}
 
 	// Creating link to read out the status of the running job from an api
-	readJobStatus := strings.Join([]string{*cd.Flags.FlagAddr, *cd.Flags.FlagPortAPI, "/readjobstatus/", fmt.Sprint(jobID)}, "")
-
-	// create a job.Report variable to store the job reports in further proceeding
-	var jobStatus [][]*job.Report
+	readJobStatus := strings.Join([]string{*cd.Flags.FlagAddr, *cd.Flags.FlagPortAPI, "/readjobstatus/", fmt.Sprint(runData.JobID)}, "")
 
 	// Loop til the job report is finished and uploaded
 	for {
-		// API request
-		resp, err := http.Get(readJobStatus)
+		// Check if the job finished
+		finished, err := CheckJobStatus(readJobStatus)
 		if err != nil {
-			return fmt.Errorf("could not post data to API: %w", err)
+			return err
 		}
-		defer resp.Body.Close()
-
-		// If API request was not 200 (StatusOK)
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("the status code of the respone is != 200 (StatusOk)")
-		}
-
-		// Unmarshal the Status of the job that was requested
-		var Status bool
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		json.Unmarshal(bodyBytes, &Status)
-		if err != nil {
-			return fmt.Errorf("error reading the HTTP response: %w", err)
-		}
-		// Status contains the job status (true = job finished, false = job still running)
+		// finished contains the job status (true = job finished, false = job still running)
 		// If the job is not already finished
-		if !Status {
+		if !finished {
 			// Sleep for the time thats configured in the clientconfig.json and than continue
 			time.Sleep(time.Duration(*cd.Flags.FlagjobWaitPoll) * time.Second)
 			continue
 		}
 		// If the job is finished
-		// Than retrieve the jobReport
-		statusResp, err := transport.Status(context.Background(), *cd.Flags.FlagRequestor, types.JobID(jobID))
+		// Retrieve the response of the report and the URL of the uploaded report.
+		respBodyBytes, statusResp, err := RetrieveJobReport(transport, cd, parameter, runData.JobID)
 		if err != nil {
-			return fmt.Errorf("could not retrieve the jobReport from the server: %w", err)
+			return err
 		}
-		// Decoding
-		respBodyBytes := new(bytes.Buffer)
-		json.NewEncoder(respBodyBytes).Encode(statusResp)
 
 		// Invoke function that uploads the test report to a S3 Bucket
-		// The function returns the name of the file that was uploaded to use it for the resultURL
-		uploadPath, err := AddFileToS3(s, parameter.S3Path, parameter.S3Bucket, respBodyBytes.Bytes(), jobID)
+		// The function returns the name of the file that was uploaded to use it for the reportURL
+		reportURL, err := AddFileToS3(s, parameter, respBodyBytes.Bytes(), runData.JobID)
 		if err != nil {
 			return fmt.Errorf("could upload the jobReport to the S3 bucket: %w", err)
 		}
 
-		// Creating link where the job report can be downloaded.
-		// This link will be put into the commit message right after the test status
-		resultURL := strings.Join([]string{"https://", parameter.S3Bucket, ".s3.", parameter.S3Region, ".amazonaws.com/", uploadPath}, "")
-
-		// Go through the report and retrieve the job status
-		jobStatus = statusResp.Data.Status.JobReport.RunReports
-
-		// Go through all final reports
-		jobSuccess := true
-		for _, allReports := range jobStatus {
-			//Go through all report in the final reports
-			for _, reports := range allReports {
-				var success = reports.Success
-				if !success {
-					jobSuccess = false
-				}
-			}
-		}
+		// Check if the job succeded
+		jobSuccess := CheckJobSuccess(statusResp.Data.Status.JobReport.RunReports)
 
 		// Adapt the Github Commit statuses and Slack Msg depending on the job success
-		// Creating the description for the result status and for the binary status
-		resultDesc := jobName + ". Test-Result:"
-		binaryDesc := jobName + ". Binary in S3 Bucket:"
+		// Creating the description for the report status and for the binary status
+		reportDesc := runData.JobName + ". Test-Report:"
+		binaryDesc := runData.JobName + ". Binary in S3 Bucket:"
 
 		// Parse the status resp for the binary url to update the binary status
 		// TODO: Find a way to differentiate multiple uploads in the report
@@ -118,59 +79,28 @@ func PushResultsToS3(ctx context.Context, cd client.ClientDescriptor,
 		r, _ := regexp.Compile(regex)
 		binaryURL := r.FindString(respBodyBytes.String())
 
-		// If the job was successful
-		if jobSuccess {
-			// Update the binary status
-			err := githubAPI.EditGithubStatus(ctx, "error", binaryURL, binaryDesc, jobSha)
-			if err != nil {
-				return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
-			}
-			// Update the result status
-			err = githubAPI.EditGithubStatus(ctx, "error", resultURL, resultDesc, jobSha)
-			if err != nil {
-				return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
-			}
-			// Create a slack msg and than post it
-			msg := strings.Join([]string{"Something goes wrong in the test with the jobName: '", jobName, "'. Commit: '", jobSha, "'."}, "")
-			err = slackAPI.MsgToSlack(msg)
-			if err != nil {
-				return fmt.Errorf("error could not posted to slack: %w", err)
-			}
-			// If the job errors
-		} else {
-			// Update the binary status
-			err := githubAPI.EditGithubStatus(ctx, "success", binaryURL, binaryDesc, jobSha)
-			if err != nil {
-				return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
-			}
-			// Update the result status
-			err = githubAPI.EditGithubStatus(ctx, "success", resultURL, resultDesc, jobSha)
-			if err != nil {
-				return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
-			}
-			// Create a slack msg and than post it
-			msg := strings.Join([]string{"The test with the jobName '", jobName, "' was successful. Commit: '", jobSha, "'."}, "")
-			err = slackAPI.MsgToSlack(msg)
-			if err != nil {
-				return fmt.Errorf("success could not posted to slack: %w", err)
-			}
+		// Update the Github status
+		err = UpdateGithubStatus(ctx, jobSuccess, binaryURL, reportURL, binaryDesc, reportDesc, runData)
+		if err != nil {
+			return err
 		}
+
 		return nil
 	}
 }
 
 // AddFileToS3 will upload a single file to S3, it will require a pre-built aws session
 // and will set file info like content type and encryption on the uploaded file.
-func AddFileToS3(s *session.Session, path string, bucket string, response []byte, jobID int) (string, error) {
+func AddFileToS3(s *session.Session, parameter PushToS3, response []byte, jobID int) (string, error) {
 
 	// Creating an upload path where the file should be uploaded with a timestamp
 	currentTime := time.Now()
-	uploadPath := strings.Join([]string{path, currentTime.Format("20060102_150405")}, "/")
+	uploadPath := strings.Join([]string{parameter.S3Path, currentTime.Format("20060102_150405")}, "/")
 	uploadPath = strings.Join([]string{uploadPath, fmt.Sprintf("%v", jobID)}, "_")
 
 	// Uploading the file
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
-		Bucket:               aws.String(bucket),
+		Bucket:               aws.String(parameter.S3Bucket),
 		Key:                  aws.String(uploadPath),
 		ACL:                  aws.String("public-read"),
 		Body:                 bytes.NewReader(response),
@@ -182,7 +112,122 @@ func AddFileToS3(s *session.Session, path string, bucket string, response []byte
 	if err != nil {
 		return uploadPath, err
 	}
-
+	// Creating link where the job report can be downloaded.
+	// This link will be put into the commit message right after the test status
+	reportURL := strings.Join([]string{"https://", parameter.S3Bucket, ".s3.", parameter.S3Region, ".amazonaws.com/", uploadPath}, "")
 	// Return the upload path
-	return uploadPath, nil
+	return reportURL, nil
+}
+
+// CreateAwsSession creates an AWS Session and returns it to reuse it
+func CreateAwsSession(parameter PushToS3) (*session.Session, error) {
+	// Create a single AWS session (we can re use this if we're uploading many files)
+	s, err := session.NewSession(&aws.Config{Region: aws.String(parameter.S3Region),
+		Credentials: credentials.NewSharedCredentials(
+			parameter.AwsFile,    // AwsFile name
+			parameter.AwsProfile, // AwsProfile name
+		)})
+	if err != nil {
+		return nil, fmt.Errorf("starting an aws session failed: %w", err)
+	}
+	return s, nil
+}
+
+// CheckJobStatus sends request to an API that returns if a job finished or not
+func CheckJobStatus(readJobStatus string) (bool, error) {
+	// API request
+	resp, err := http.Get(readJobStatus)
+	if err != nil {
+		return false, fmt.Errorf("could not post data to API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// If API request was not 200 (StatusOK)
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("the status code of the respone is != 200 (StatusOk)")
+	}
+
+	// Unmarshal the status of the job that was requested
+	var finished bool
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	json.Unmarshal(bodyBytes, &finished)
+	if err != nil {
+		return false, fmt.Errorf("error reading the HTTP response: %w", err)
+	}
+	// Return status
+	return finished, nil
+}
+
+// RetrieveJobReport retrieves the job report and returns it in 2 datatypes to use it in further proceeding
+func RetrieveJobReport(transport transport.Transport, cd client.ClientDescriptor, parameter PushToS3, jobID int) (
+	*bytes.Buffer, *api.StatusResponse, error) {
+	// Retrieve the jobReport
+	statusResp, err := transport.Status(context.Background(), *cd.Flags.FlagRequestor, types.JobID(jobID))
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not retrieve the jobReport from the server: %w", err)
+	}
+	// Decoding
+	respBodyBytes := new(bytes.Buffer)
+	json.NewEncoder(respBodyBytes).Encode(statusResp)
+	// Return data as bytes.Buffer and api.StatusResponse
+	return respBodyBytes, statusResp, nil
+}
+
+// CheckJobSuccess parses the job report if the job was successful or not
+func CheckJobSuccess(jobStatus [][]*job.Report) bool {
+	// Go through all final reports
+	jobSuccess := true
+	for _, allReports := range jobStatus {
+		//Go through all report in the final reports
+		for _, reports := range allReports {
+			var success = reports.Success
+			if !success {
+				jobSuccess = false
+			}
+		}
+	}
+	return jobSuccess
+}
+
+// UpdateGithubStatus updates different Github statuses depending on the success of the job
+func UpdateGithubStatus(ctx context.Context, jobSuccess bool, binaryURL string, reportURL string,
+	binaryDesc string, reportDesc string, runData client.RunData) error {
+	// If the job was successful
+	if jobSuccess {
+		// Update the binary status
+		err := githubAPI.EditGithubStatus(ctx, "error", binaryURL, binaryDesc, runData.JobSHA)
+		if err != nil {
+			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
+		}
+		// Update the report status
+		err = githubAPI.EditGithubStatus(ctx, "error", reportURL, reportDesc, runData.JobSHA)
+		if err != nil {
+			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
+		}
+		// Create a slack msg and than post it
+		msg := strings.Join([]string{"Something goes wrong in the test with the jobName: '", runData.JobName, "'. Commit: '", runData.JobSHA, "'."}, "")
+		err = slackAPI.MsgToSlack(msg)
+		if err != nil {
+			return fmt.Errorf("error could not posted to slack: %w", err)
+		}
+		// If the job errors
+	} else {
+		// Update the binary status
+		err := githubAPI.EditGithubStatus(ctx, "success", binaryURL, binaryDesc, runData.JobSHA)
+		if err != nil {
+			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
+		}
+		// Update the report status
+		err = githubAPI.EditGithubStatus(ctx, "success", reportURL, reportDesc, runData.JobSHA)
+		if err != nil {
+			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
+		}
+		// Create a slack msg and than post it
+		msg := strings.Join([]string{"The test with the jobName '", runData.JobName, "' was successful. Commit: '", runData.JobSHA, "'."}, "")
+		err = slackAPI.MsgToSlack(msg)
+		if err != nil {
+			return fmt.Errorf("success could not posted to slack: %w", err)
+		}
+	}
+	return nil
 }

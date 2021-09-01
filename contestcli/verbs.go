@@ -28,9 +28,9 @@ type templatedata struct {
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData WebhookData) (map[int]client.RunData, error) {
+	webhookData WebhookData) ([]client.RunData, error) {
 
-	jobs := make(map[int]client.RunData, len(cd.Flags.FlagJobTemplate))
+	var jobs []client.RunData
 
 	// Iterate over all JobTemplates that are defined in the clientconfig.json
 	for i := 0; i < len(cd.Flags.FlagJobTemplate); i++ {
@@ -96,8 +96,8 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
-		jobData := client.RunData{JobName: jobName, JobSHA: webhookData.headSHA}
-		jobs[int(startResp.Data.JobID)] = jobData
+		jobData := client.RunData{JobID: int(startResp.Data.JobID), JobName: jobName, JobSHA: webhookData.headSHA}
+		jobs = append(jobs, jobData)
 
 		// Create Json Body for API Request to set a status for the started Job
 		data := map[string]interface{}{
