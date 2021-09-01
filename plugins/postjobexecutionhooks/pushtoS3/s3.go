@@ -97,6 +97,7 @@ func AddFileToS3(s *session.Session, parameter PushToS3, response []byte, jobID 
 	currentTime := time.Now()
 	uploadPath := strings.Join([]string{parameter.S3Path, currentTime.Format("20060102_150405")}, "/")
 	uploadPath = strings.Join([]string{uploadPath, fmt.Sprintf("%v", jobID)}, "_")
+	uploadPath = strings.Join([]string{uploadPath, "json"}, ".")
 
 	// Uploading the file
 	_, err := s3.New(s).PutObject(&s3.PutObjectInput{
