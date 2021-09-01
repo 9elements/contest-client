@@ -194,7 +194,7 @@ func CheckJobSuccess(jobStatus [][]*job.Report) bool {
 func UpdateGithubStatus(ctx context.Context, jobSuccess bool, binaryURL string, reportURL string,
 	binaryDesc string, reportDesc string, runData client.RunData) error {
 	// If the job was successful
-	if jobSuccess {
+	if !jobSuccess {
 		// Update the binary status
 		err := githubAPI.EditGithubStatus(ctx, "error", binaryURL, binaryDesc, runData.JobSHA)
 		if err != nil {
