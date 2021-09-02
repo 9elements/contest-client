@@ -89,7 +89,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Updating the github status to pending after the job is kicked off
-		err = githubAPI.EditGithubStatus(ctx, "pending", "", jobName+". Test-Result:", webhookData.headSHA)
+		err = githubAPI.EditGithubStatus(ctx, "pending", "", jobName+". Test-Report:", webhookData.headSHA)
 		if err != nil {
 			return nil, fmt.Errorf("could not change the github status: %w", err)
 		}
