@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/9elements/contest-client/pkg/client"
-	githubAPI "github.com/9elements/contest-client/pkg/github"
-	slackAPI "github.com/9elements/contest-client/pkg/slack"
+	"github.com/9elements/contest-client/pkg/clientapi"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -193,39 +192,43 @@ func CheckJobSuccess(jobStatus [][]*job.Report) bool {
 // UpdateGithubStatus updates different Github statuses depending on the success of the job
 func UpdateGithubStatus(ctx context.Context, jobSuccess bool, binaryURL string, reportURL string,
 	binaryDesc string, reportDesc string, runData client.RunData) error {
+
+	var Github = clientapi.GithubAPI{}
+	var Slack = clientapi.SlackAPI{}
+
 	// If the job was successful
 	if !jobSuccess {
 		// Update the binary status
-		err := githubAPI.EditGithubStatus(ctx, "error", binaryURL, binaryDesc, runData.JobSHA)
+		err := Github.EditGithubStatus(ctx, "error", binaryURL, binaryDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
 		}
 		// Update the report status
-		err = githubAPI.EditGithubStatus(ctx, "error", reportURL, reportDesc, runData.JobSHA)
+		err = Github.EditGithubStatus(ctx, "error", reportURL, reportDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
 		}
 		// Create a slack msg and than post it
 		msg := strings.Join([]string{"Something goes wrong in the test with the jobName: '", runData.JobName, "'. Commit: '", runData.JobSHA, "'."}, "")
-		err = slackAPI.MsgToSlack(msg)
+		err = Slack.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("error could not posted to slack: %w", err)
 		}
 		// If the job errors
 	} else {
 		// Update the binary status
-		err := githubAPI.EditGithubStatus(ctx, "success", binaryURL, binaryDesc, runData.JobSHA)
+		err := Github.EditGithubStatus(ctx, "success", binaryURL, binaryDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
 		}
 		// Update the report status
-		err = githubAPI.EditGithubStatus(ctx, "success", reportURL, reportDesc, runData.JobSHA)
+		err = Github.EditGithubStatus(ctx, "success", reportURL, reportDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
 		}
 		// Create a slack msg and than post it
 		msg := strings.Join([]string{"The test with the jobName '", runData.JobName, "' was successful. Commit: '", runData.JobSHA, "'."}, "")
-		err = slackAPI.MsgToSlack(msg)
+		err = Slack.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("success could not posted to slack: %w", err)
 		}

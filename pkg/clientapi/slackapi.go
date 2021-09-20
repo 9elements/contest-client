@@ -1,4 +1,4 @@
-package slackAPI
+package clientapi
 
 import (
 	"bytes"
@@ -13,12 +13,15 @@ type RequestBody struct {
 	Message string `json:"text"`
 }
 
+type SlackAPI struct {
+}
+
 // MsgToSlack will post a message to a slack webhook. It receives a message and post it.
-func MsgToSlack(msg string) error {
-	// getting env variable SLACK_WEBHOOK_URL
+func (s SlackAPI) MsgToSlack(msg string) error {
+	// Getting env variable SLACK_WEBHOOK_URL
 	webhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 
-	//creating the body and the request
+	// Creating the body and the request
 	Body, _ := json.Marshal(RequestBody{Message: msg})
 	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewBuffer(Body))
 	if err != nil {
