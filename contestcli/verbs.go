@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/9elements/contest-client/pkg/client"
-	githubAPI "github.com/9elements/contest-client/pkg/github"
+	"github.com/9elements/contest-client/pkg/clientapi"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/icza/dyno"
 	"gopkg.in/yaml.v2"
@@ -41,7 +41,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		filePathTemplate := strings.Join([]string{filePath, *cd.Flags.FlagJobTemplate[i]}, "/")
 
 		// Parse the json/yaml file
-		templateDescription, err := ioutil.ReadFile(filePathTemplate)
+		templateDescription, err := os.ReadFile(filePathTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse the jobtemplate: %w", err)
 		}
@@ -89,7 +89,8 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Updating the github status to pending after the job is kicked off
-		err = githubAPI.EditGithubStatus(ctx, "pending", "", jobName+". Test-Report:", webhookData.headSHA)
+		Github := clientapi.GithubAPI{}
+		err = Github.EditGithubStatus(ctx, "pending", "", jobName+". Test-Report:", webhookData.headSHA)
 		if err != nil {
 			return nil, fmt.Errorf("could not change the github status: %w", err)
 		}
