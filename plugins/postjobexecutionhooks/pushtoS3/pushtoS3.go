@@ -85,12 +85,12 @@ func validateAWS(file string, AwsProfile string) error {
 	if AwsProfile != "" {
 		exists := strings.Contains(fileString, AwsProfile)
 		if !exists {
-			return fmt.Errorf("AwsProfile does not exist")
+			return fmt.Errorf("awsProfile does not exist")
 		}
 	} else {
 		exists := strings.Contains(fileString, "default")
 		if !exists {
-			return fmt.Errorf("default AwsProfile does not exist")
+			return fmt.Errorf("default awsProfile does not exist")
 		}
 	}
 	return nil
