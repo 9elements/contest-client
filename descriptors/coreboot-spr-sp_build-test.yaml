@@ -94,10 +94,10 @@ TestDescriptors:
                     parameters:
                         executable: [make]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
-                -   name: UploadFile
+                -   name: S3FileUpload
                     label: upload coreboot binary
                     parameters:
-                        localPath: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]   
+                        localPath: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]
                         filename: ["coreboot.rom"]
                         s3Region: [eu-central-1]
                         s3Bucket: [coreboot-spr-sp-images]
