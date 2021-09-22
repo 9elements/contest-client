@@ -98,7 +98,7 @@ TestDescriptors:
                     label: upload coreboot binary
                     parameters:
                         localPath: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]
-                        filename: ["coreboot.rom"]
+                        fileName: ["coreboot.rom"]
                         s3Region: [eu-central-1]
                         s3Bucket: [coreboot-spr-sp-images]
                         s3Path: [binaries]
