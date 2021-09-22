@@ -97,14 +97,14 @@ TestDescriptors:
                 -   name: s3fileupload
                     label: upload coreboot binary
                     parameters:
-                        localPath: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]
-                        fileName: ["coreboot.rom"]
-                        s3Region: [eu-central-1]
-                        s3Bucket: [coreboot-spr-sp-images]
-                        s3Path: [binaries]
-                        s3CredFile: []
-                        s3CredProfile: [9e-AWS-Key]
-                        compGzip: [true]
+                        path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]
+                        filename: ["coreboot.rom"]
+                        s3region: [eu-central-1]
+                        s3bucket: [coreboot-spr-sp-images]
+                        s3path: [binaries]
+                        s3credfile: []
+                        s3credprofile: [9e-AWS-Key]
+                        compgzip: [true]
 Reporting:
     RunReporters:
         -   name: TargetSuccess
