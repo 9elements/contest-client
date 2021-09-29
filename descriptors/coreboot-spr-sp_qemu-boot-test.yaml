@@ -1,7 +1,7 @@
 JobName: QEMU Boot Test
 Runs: 1
 RunInterval: 60s
-Tags: ["ocp", "deltalake", "csv"]
+Tags: ["coreboot", "qemu", "boot"]
 TestDescriptors:
     -   TargetManagerName: CSVFileTargetManager
         TargetManagerAcquireParameters:
@@ -92,14 +92,14 @@ TestDescriptors:
                     label: uroot into coreboot folder
                     parameters:
                         executable: [cp]
-                        args: ["/tmp/assets/initramfs.linux_amd64.cpio", "initramfs.linux_amd64.cpio"]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/initramfs.linux_amd64.cpio", "initramfs.linux_amd64.cpio"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
 
                 -   name: cmd
                     label: qemu script into folder
                     parameters:
                         executable: [cp]
-                        args: ["/tmp/assets/qemuscript.sh", "qemuscript.sh"]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/qemuscript.sh", "qemuscript.sh"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
 
                 -   name: cmd

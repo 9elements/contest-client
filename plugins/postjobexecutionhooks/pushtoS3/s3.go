@@ -79,14 +79,14 @@ func PushReportsToS3(ctx context.Context, cd client.ClientDescriptor,
 		binaryURL := r.FindString(respBodyBytes.String())
 		if binaryURL != "" {
 			// Update the Github status
-			err = UpdateGithubStatus(ctx, jobSuccess, binaryURL, binaryDesc, reportDesc, runData)
+			err = UpdateGithubStatus(ctx, jobSuccess, binaryURL, binaryDesc, runData)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Update the Github status
-		err = UpdateGithubStatus(ctx, jobSuccess, reportURL, binaryDesc, reportDesc, runData)
+		err = UpdateGithubStatus(ctx, jobSuccess, reportURL, reportDesc, runData)
 		if err != nil {
 			return err
 		}
@@ -201,15 +201,15 @@ func CheckJobSuccess(jobStatus [][]*job.Report) bool {
 }
 
 // UpdateGithubStatus updates different Github statuses depending on the success of the job
-func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, binaryDesc string,
-	reportDesc string, runData client.RunData) error {
+func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, statusDesc string,
+	runData client.RunData) error {
 
 	var Github = clientapi.GithubAPI{}
 
 	// If the job was successful
 	if !jobSuccess {
 		// Update the github status
-		err := Github.EditGithubStatus(ctx, "error", dataURL, binaryDesc, runData.JobSHA)
+		err := Github.EditGithubStatus(ctx, "error", dataURL, statusDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
 		}
@@ -217,7 +217,7 @@ func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, bi
 		// If the job errors
 	} else {
 		// Update the github status
-		err := Github.EditGithubStatus(ctx, "success", dataURL, binaryDesc, runData.JobSHA)
+		err := Github.EditGithubStatus(ctx, "success", dataURL, statusDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
 		}
