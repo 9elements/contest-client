@@ -1,29 +1,30 @@
-JobName: Build Test
+JobName: QEMU Boot Test
 Runs: 1
 RunInterval: 60s
-Tags: ["coreboot", "binary", "rom"]
+Tags: ["ocp", "deltalake", "csv"]
 TestDescriptors:
     -   TargetManagerName: CSVFileTargetManager
-        TargetManagerAcquireParameters: 
+        TargetManagerAcquireParameters:
             FileURI: hosts.csv
+            Shuffle: true
             HostPrefixes: ["yv3-evt-slot"]
             MinNumberDevices: 1
             MaxNumberDevices: 1
         TargetManagerReleaseParameters:
         TestFetcherName: literal
         TestFetcherFetchParameters:
-            TestName: Build test with binary upload
+            TestName: Build and Boot coreboot
             Steps:
                 -   name: cmd
                     label: Delete local Files coreboot
                     parameters:
                         executable: [rm]
-                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        args: ["-rf", "/tmp/coreboot/"]
                 -   name: cmd
                     label: Delete local Files assets
                     parameters:
                         executable: [rm]
-                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
+                        args: ["-rf", "/tmp/assets/"]
 
 
 
@@ -76,7 +77,7 @@ TestDescriptors:
                     label: Config into coreboot folder
                     parameters:
                         executable: [cp]
-                        args: ["/tmp/assets-spr-sp-{{ .ID }}/configs/defconfig_coreboot-spr-sp", "configs/defconfig"]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/configs/defconfig_coreboot-spr-sp_qemu-build", "configs/defconfig"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
 
                 -   name: cmd
@@ -88,10 +89,24 @@ TestDescriptors:
                         expect: ["configuration written to"]
 
                 -   name: cmd
+                    label: uroot into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets/initramfs.linux_amd64.cpio", "initramfs.linux_amd64.cpio"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
+                    label: qemu script into folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets/qemuscript.sh", "qemuscript.sh"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
                     label: Building the toolchain
                     parameters:
                         executable: [make]
-                        args: ["crossgcc-i386","CPUS=52"]
+                        args: ["crossgcc-i386","CPUS=16"]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
                         expect: ["You can now run IASL ACPI compiler from"]
 
@@ -101,18 +116,26 @@ TestDescriptors:
                         executable: [make]
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
 
-                -   name: s3fileupload
-                    label: upload coreboot binary
+                -   name: cmd
+                    label: emulate coreboot
                     parameters:
-                        path: ["/tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom"]
-                        filename: ["coreboot.rom"]
-                        s3region: [eu-central-1]
-                        s3bucket: [coreboot-spr-sp-images]
-                        s3path: [binaries]
-                        s3credfile: []
-                        s3credprofile: [9e-AWS-Key]
-                        compgzip: [true]
-                        
+                        executable: [sh]
+                        args: ["qemuscript.sh"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]   
+                        expect: ["Jumping to boot code"]
+
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters: 
+            FileURI: hosts.csv
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Cleanup
+            Steps:
+
 Reporting:
     RunReporters:
         -   name: TargetSuccess
