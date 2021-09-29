@@ -124,18 +124,6 @@ TestDescriptors:
                         dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]   
                         expect: ["Jumping to boot code"]
 
-    -   TargetManagerName: CSVFileTargetManager
-        TargetManagerAcquireParameters: 
-            FileURI: hosts.csv
-            HostPrefixes: ["yv3-evt-slot"]
-            MinNumberDevices: 1
-            MaxNumberDevices: 1
-        TargetManagerReleaseParameters:
-        TestFetcherName: literal
-        TestFetcherFetchParameters:
-            TestName: Cleanup
-            Steps:
-
 Reporting:
     RunReporters:
         -   name: TargetSuccess
