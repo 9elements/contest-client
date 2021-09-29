@@ -19,12 +19,12 @@ TestDescriptors:
                     label: Delete local Files coreboot
                     parameters:
                         executable: [rm]
-                        args: ["-rf", "/tmp/coreboot/"]
+                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
                 -   name: cmd
                     label: Delete local Files assets
                     parameters:
                         executable: [rm]
-                        args: ["-rf", "/tmp/assets/"]
+                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
 
 
 
