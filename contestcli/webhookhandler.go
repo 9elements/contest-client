@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 
 	"github.com/google/go-github/github"
@@ -24,25 +23,20 @@ func webhook(webhookData chan WebhookData) {
 	channel := &Channel{webhookdata: webhookData}
 	log.Println("webhook listener is running and running")
 	http.HandleFunc("/", channel.handleWebhook)
-	log.Fatal(http.ListenAndServeTLS("0.0.0.0:6000", "/certs/fullchain.crt", "/certs/server.key", nil))
+	err := http.ListenAndServeTLS("0.0.0.0:6000", "/certs/fullchain.crt", "/certs/server.key", nil)
+	if err != nil {
+		log.Printf("error listening to the webhook, err: %s\n", err)
+	}
 }
 
 // HandleWebhook handles incoming webhooks
 func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r)
-	// Log request
-	dump, err := httputil.DumpRequest(r, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(dump)
-
 	//retrieve the github_secret for the webhook from .env
 	github_secret := os.Getenv("GITHUB_SECRET")
 	// Receiving and validating the incoming webhook
 	payload, err := github.ValidatePayload(r, []byte(github_secret))
 	if err != nil {
-		log.Printf("error reading request body: err=%s\n", err)
+		log.Printf("error reading request body, err: %s\n", err)
 		return
 	}
 	defer r.Body.Close()
