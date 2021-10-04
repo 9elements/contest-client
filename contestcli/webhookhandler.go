@@ -29,6 +29,7 @@ func webhook(webhookData chan WebhookData) {
 
 // HandleWebhook handles incoming webhooks
 func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r)
 	// Log request
 	dump, err := httputil.DumpRequest(r, true)
 	if err != nil {
