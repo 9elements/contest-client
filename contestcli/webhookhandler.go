@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"os"
 
 	"github.com/google/go-github/github"
@@ -28,6 +29,13 @@ func webhook(webhookData chan WebhookData) {
 
 // HandleWebhook handles incoming webhooks
 func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
+	// Log request
+	dump, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(dump)
+
 	//retrieve the github_secret for the webhook from .env
 	github_secret := os.Getenv("GITHUB_SECRET")
 	// Receiving and validating the incoming webhook
