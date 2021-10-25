@@ -10,7 +10,7 @@
             "flagS3": false,
             "flagJobWaitPoll" : 120,
             "flagLogLevel": "",
-            "flagJobTemplate": ["coreboot-spr-sp_build-test.yaml", "coreboot-spr-sp_qemu-boot-test.yaml", "coreboot-spr-sp_archercity-crb-boot-test.yaml"]                    
+            "flagJobTemplate": ["coreboot-spr-sp_build-test.yaml", "coreboot-spr-sp_archercity-crb-boot-test.yaml"]                    
         }
     ,
     "PostJobExecutionHooks": [

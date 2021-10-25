@@ -84,7 +84,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		} else {
 			// If the job could not executed
 			if int(startResp.Data.JobID) == 0 {
-				return nil, fmt.Errorf("the Job could not executed. Server returned JobID 0! %w", err)
+				return nil, fmt.Errorf("the Job could not executed. Server returned JobID 0")
 			}
 		}
 
