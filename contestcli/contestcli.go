@@ -123,7 +123,7 @@ func CLIMain(cmd string, args []string, stdout io.Writer) error {
 		var rundata []client.RunData
 		rundata, err := run(ctx, cd, &http.HTTP{Addr: *cd.Flags.FlagAddr + *cd.Flags.FlagPortServer}, stdout, nextWebhookData)
 		if err != nil {
-			fmt.Println("Running the job failed. Err: %w. You should probably check the connection and restart the test.", err)
+			_ = fmt.Errorf("running the job failed (err: %w) You should probably check the connection and restart the test", err)
 			continue
 		}
 		// Iterate over all PostJobExecution plugins
