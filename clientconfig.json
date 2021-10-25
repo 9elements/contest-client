@@ -1,7 +1,7 @@
 {
     "Flags": 
         {
-            "flagAddr": "http://10.93.193.82",
+            "flagAddr": "http://10.93.193.81",
             "flagPortServer": ":8080",
             "flagPortAPI": ":3005",
             "flagRequestor": "",
@@ -10,7 +10,7 @@
             "flagS3": false,
             "flagJobWaitPoll" : 120,
             "flagLogLevel": "",
-            "flagJobTemplate": ["coreboot-spr-sp_build-test.yaml", "coreboot-spr-sp_qemu-boot-test.yaml"]                    
+            "flagJobTemplate": ["coreboot-spr-sp_build-test.yaml", "coreboot-spr-sp_qemu-boot-test.yaml", "coreboot-spr-sp_archercity-crb-boot-test.yaml"]                    
         }
     ,
     "PostJobExecutionHooks": [

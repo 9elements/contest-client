@@ -1,0 +1,190 @@
+JobName: ArcherCity CRB Boot Test
+Runs: 1
+RunInterval: 60s
+Tags: ["coreboot", "qemu", "boot"]
+TestDescriptors:
+    -   TargetManagerName: CSVFileTargetManager
+        TargetManagerAcquireParameters:
+            FileURI: hosts.csv
+            Shuffle: true
+            HostPrefixes: ["yv3-evt-slot"]
+            MinNumberDevices: 1
+            MaxNumberDevices: 1
+        TargetManagerReleaseParameters:
+        TestFetcherName: literal
+        TestFetcherFetchParameters:
+            TestName: Build and Boot coreboot
+            Steps:
+                -   name: cmd
+                    label: Delete local Files coreboot
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Delete local Files assets
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/assets-spr-sp-{{ .ID }}/"]
+                -   name: cmd
+                    label: Delete local archercity logs
+                    parameters:
+                        executable: [rm]
+                        args: ["-rf", "/tmp/archercity.log"]
+
+
+
+
+                -   name: cmd
+                    label: Cloning coreboot
+                    parameters:
+                        executable: [git]
+                        args: ["clone","git@github.com:coreboot/coreboot.git", "/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+                
+                -   name: cmd
+                    label: Cloning all assets
+                    parameters:
+                        executable: [git]
+                        args: ["clone","git@github.com:9elements/contest-job-assets", "/tmp/assets-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+
+                -   name: cmd
+                    label: Cloning submodules
+                    parameters:
+                        executable: [git]
+                        args: ["submodule","update", "--checkout", "--init"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Cloning into"]
+
+                -   name: cmd
+                    label: Adding 9elements remote
+                    parameters:
+                        executable: [git]
+                        args: ["remote","add", "9elements", "git@github.com:9elements/coreboot-spr-sp.git"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
+                    label: Fetching 9elements data
+                    parameters:
+                        executable: [git]
+                        args: ["fetch","--all"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["Fetching 9elements"]
+
+                -   name: cmd
+                    label: Checkout to the right commit
+                    parameters:
+                        executable: [git]
+                        args: ["checkout","9elements/master"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["switching to the right commit"]
+
+
+
+
+                -   name: cmd
+                    label: Building the toolchain
+                    parameters:
+                        executable: [make]
+                        args: ["crossgcc-i386","CPUS=16"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["You can now run IASL ACPI compiler from"]
+
+                -   name: cmd
+                    label: Config into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/configs/defconfig_coreboot-spr-sp_archercity-build", "configs/defconfig"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
+                    label: vpd binary into coreboot folder
+                    parameters:
+                        executable: [cp]
+                        args: ["/tmp/assets-spr-sp-{{ .ID }}/vpd", "."]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
+                    label: Creating the .config file
+                    parameters:
+                        executable: [make]
+                        args: ["defconfig"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+                        expect: ["configuration written to"]
+
+
+
+
+                -   name: cmd
+                    label: Build coreboot
+                    parameters:
+                        executable: [make]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+
+
+
+                -   name: cmd
+                    label: Disable fsp logging
+                    parameters:
+                        executable: [sh]
+                        args: ["-c", "./vpd -f /tmp/coreboot-spr-sp-{{ .ID }}/build/coreboot.rom -O -i RW_VPD -s fsp_log_enable=0"]
+                        dir: ["/tmp/assets-spr-sp-{{ .ID }}/"]
+
+                -   name: cmd
+                    label: Coreboot to target via scp
+                    parameters:
+                        executable: [scp]
+                        args: ["build/coreboot.rom", "pi@mrfreeze:~/"]
+                        dir: ["/tmp/coreboot-spr-sp-{{ .ID }}/"]
+
+                -   name: sshcmd
+                    label: ssh to ArcherCity and flash it
+                    parameters:
+                        user: ["pi"]
+                        private_key_file: ["/home/christoph/.ssh/cybersecsshkey"]
+                        host: ["mrfreeze"]
+                        executable: [sh]
+                        args: ["-c", "em100 --stop -c MX25L51245G --start -p FLOAT -d coreboot.rom"]
+                        expect: ["Started EM100Pro"]
+                        timeout: [30s]
+
+                -   name: cmd
+                    label: Power Cycle the ArcherCity
+                    parameters:
+                        executable: [sh]
+                        args: ["-c", "curl -X GET http://admin:flater1c@pdu3.lab.9e.network/control_outlet.htm\\?outlet2\\=1\\&op=2\\&submit\\=Apply"]
+
+                -   name: sleep
+                    label: Sleep for x min
+                    parameters:
+                        duration: [10m]
+
+                -   name: cmd
+                    label: Save logs
+                    parameters:
+                        executable: [sh]
+                        args: ["-c", "dutctl -s mrfreeze log >> /tmp/archercity.log"]
+
+                -   name: cmd
+                    label: Grep for expected string
+                    parameters:
+                        executable: [grep]
+                        args: ["-a", 'Welcome to u-root!', "archercity.log"]
+                        dir: ["/tmp/"]
+
+                -   name: cmd
+                    label: Power Cycle the ArcherCity
+                    parameters:
+                        executable: [sh]
+                        args: ["-c", "curl -X GET http://admin:flater1c@pdu3.lab.9e.network/control_outlet.htm\\?outlet2\\=1\\&op=0\\&submit\\=Apply"]
+
+
+Reporting:
+    RunReporters:
+        -   name: TargetSuccess
+            parameters:
+                SuccessExpression: "=100%"
+        -   name: PostDone
+            parameters:
+                ApiURI: "http://localhost:3005/updatejobstatus/"
