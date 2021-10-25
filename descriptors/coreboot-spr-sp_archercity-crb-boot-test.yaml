@@ -174,7 +174,7 @@ TestDescriptors:
                         dir: ["/tmp/"]
 
                 -   name: cmd
-                    label: Power Cycle the ArcherCity
+                    label: Shutdown the ArcherCity
                     parameters:
                         executable: [sh]
                         args: ["-c", "curl -X GET http://admin:flater1c@pdu3.lab.9e.network/control_outlet.htm\\?outlet2\\=1\\&op=0\\&submit\\=Apply"]
