@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -233,7 +234,7 @@ func SendSlackMsg(jobSuccess bool, runData client.RunData) error {
 	// If the job was successful
 	if !jobSuccess {
 		// Create a slack msg and than post it
-		msg := strings.Join([]string{"Something goes wrong in the test with the jobName '", runData.JobName, "' and the jobID '", string(runData.JobID), "'. Commit: '", runData.JobSHA, "'."}, "")
+		msg := strings.Join([]string{"Something goes wrong in the test with the jobName '", runData.JobName, "' and the jobID '", strconv.Itoa(runData.JobID), "'. Commit: '", runData.JobSHA, "'."}, "")
 		err := Slack.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("error could not posted to slack: %w", err)
@@ -242,7 +243,7 @@ func SendSlackMsg(jobSuccess bool, runData client.RunData) error {
 		// If the job errors
 	} else {
 		// Create a slack msg and than post it
-		msg := strings.Join([]string{"The test with the jobName '", runData.JobName, "' and the jobID '", string(runData.JobID), "' was successful. Commit: '", runData.JobSHA, "'."}, "")
+		msg := strings.Join([]string{"The test with the jobName '", runData.JobName, "' and the jobID '", strconv.Itoa(runData.JobID), "' was successful. Commit: '", runData.JobSHA, "'."}, "")
 		err := Slack.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("success could not posted to slack: %w", err)
