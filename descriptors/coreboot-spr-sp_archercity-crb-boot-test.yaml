@@ -142,7 +142,7 @@ TestDescriptors:
                     label: ssh to ArcherCity and flash it
                     parameters:
                         user: ["pi"]
-                        private_key_file: ["/home/christoph/.ssh/cybersecsshkey"]
+                        private_key_file: ["/root/.ssh/cybersecsshkey"]
                         host: ["mrfreeze"]
                         executable: [sh]
                         args: ["-c", "em100 --stop -c MX25L51245G --start -p FLOAT -d coreboot.rom"]
