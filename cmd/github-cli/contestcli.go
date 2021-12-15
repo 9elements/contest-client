@@ -44,13 +44,13 @@ func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
 				return err
 			}
 			// Run the plugin
-			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, *config, &http.HTTP{Addr: *config.Flags.FlagAddr + *config.Flags.FlagPortServer}); err != nil {
+			if _, err = bundlePreExecutionHook.PreJobExecutionHooks.Run(ctx, bundlePreExecutionHook.Parameters, *config, &http.HTTP{Addr: *config.Configuration.Addr + *config.Configuration.PortServer}); err != nil {
 				return err
 			}
 		}
 		// Run the job and receive the rundata
 		var rundata []client.RunData
-		rundata, err := run(ctx, *config, &http.HTTP{Addr: *config.Flags.FlagAddr + *config.Flags.FlagPortServer}, stdout, nextWebhookData, weblistener)
+		rundata, err := run(ctx, *config, &http.HTTP{Addr: *config.Configuration.Addr + *config.Configuration.PortServer}, stdout, nextWebhookData, weblistener)
 		if err != nil {
 			_ = fmt.Errorf("running the job failed (err: %w) You should probably check the connection and restart the test", err)
 			continue
@@ -67,7 +67,7 @@ func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
 				return err
 			}
 			// Run the plugin
-			if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters, *config, &http.HTTP{Addr: *config.Flags.FlagAddr + *config.Flags.FlagPortServer}, rundata); err != nil {
+			if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters, *config, &http.HTTP{Addr: *config.Configuration.Addr + *config.Configuration.PortServer}, rundata); err != nil {
 				return err
 			}
 		}

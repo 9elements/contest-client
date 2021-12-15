@@ -37,7 +37,7 @@ func PushReportsToS3(ctx context.Context, cd client.ClientDescriptor,
 	}
 
 	// Creating link to read out the status of the running job from an api
-	readJobStatus := strings.Join([]string{*cd.Flags.FlagAddr, *cd.Flags.FlagPortAPI, "/readjobstatus/", fmt.Sprint(runData.JobID)}, "")
+	readJobStatus := strings.Join([]string{*cd.Configuration.Addr, *cd.Configuration.PortAPI, "/readjobstatus/", fmt.Sprint(runData.JobID)}, "")
 
 	// Loop til the job report is finished and uploaded
 	for {
@@ -50,7 +50,7 @@ func PushReportsToS3(ctx context.Context, cd client.ClientDescriptor,
 		// If the job is not already finished
 		if !finished {
 			// Sleep for the time thats configured in the clientconfig.json and than continue
-			time.Sleep(time.Duration(*cd.Flags.FlagjobWaitPoll) * time.Second)
+			time.Sleep(time.Duration(*cd.Configuration.JobWaitPoll) * time.Second)
 			continue
 		}
 		// If the job is finished
@@ -189,7 +189,7 @@ func CheckJobStatus(readJobStatus string) (bool, error) {
 func RetrieveJobReport(transport transport.Transport, cd client.ClientDescriptor, parameter PushToS3, jobID int) (
 	*bytes.Buffer, *api.StatusResponse, error) {
 	// Retrieve the jobReport
-	statusResp, err := transport.Status(context.Background(), *cd.Flags.FlagRequestor, types.JobID(jobID))
+	statusResp, err := transport.Status(context.Background(), *cd.Configuration.Requestor, types.JobID(jobID))
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not retrieve the jobReport from the server: %w", err)
 	}

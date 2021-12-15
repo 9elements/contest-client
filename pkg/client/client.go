@@ -20,7 +20,7 @@ type PostJobExecutionHookLoader func() (string, PostJobExecutionHooksFactory)
 // ClientDescriptor models the deserialized version of the JSON text given as
 // input to the client at start.
 type ClientDescriptor struct {
-	Flags                 Flags
+	Configuration         Configuration
 	PreJobExecutionHooks  []*PreHookDescriptor
 	PostJobExecutionHooks []*PostHookDescriptor
 }
@@ -39,18 +39,18 @@ type ExecutionHookParam struct {
 type PreJobExecutionHookParameters map[string][]ExecutionHookParam
 type PostJobExecutionHookParameters map[string][]ExecutionHookParam
 
-type Flags struct {
+type Configuration struct {
 	// Flag-related parameters
-	FlagAddr        *string   //ConTest server [scheme://]host to connect to
-	FlagPortServer  *string   //Port that the server is using ":port"
-	FlagPortAPI     *string   //Port that the API is using ":port"
-	FlagRequestor   *string   //Identifier of the requestor of the API call
-	FlagWait        *bool     //After starting a job, wait for it to finish, and exit 0 only if it is successful
-	FlagYAML        *bool     //JSON or YAML
-	FlagS3          *bool     //Upload Job Result to S3 Bucket
-	FlagjobWaitPoll *int      //Time in seconds for the interval requesting the job status
-	FlagLogLevel    *string   //possible values: debug, info, warning, error, panic, fatal
-	FlagJobTemplate []*string //filenames to the job templates, no default
+	Addr        *string   //ConTest server [scheme://]host to connect to
+	PortServer  *string   //Port that the server is using ":port"
+	PortAPI     *string   //Port that the API is using ":port"
+	Requestor   *string   //Identifier of the requestor of the API call
+	Wait        *bool     //After starting a job, wait for it to finish, and exit 0 only if it is successful
+	YAML        *bool     //JSON or YAML
+	S3          *bool     //Upload Job Result to S3 Bucket
+	JobWaitPoll *int      //Time in seconds for the interval requesting the job status
+	LogLevel    *string   //possible values: debug, info, warning, error, panic, fatal
+	JobTemplate []*string //filenames to the job templates, no default
 }
 type PreHookDescriptor struct {
 	// PreJobExecutionHook-related parameters

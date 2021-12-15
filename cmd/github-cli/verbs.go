@@ -34,11 +34,11 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 	var jobs []client.RunData
 
 	// Iterate over all JobTemplates that are defined in the clientconfig.json
-	for i := 0; i < len(cd.Flags.FlagJobTemplate); i++ {
+	for i := 0; i < len(cd.Configuration.JobTemplate); i++ {
 
 		// Create Path to the jobTemplate
 		filePath, _ := filepath.Abs("descriptors/")
-		filePathTemplate := strings.Join([]string{filePath, *cd.Flags.FlagJobTemplate[i]}, "/")
+		filePathTemplate := strings.Join([]string{filePath, *cd.Configuration.JobTemplate[i]}, "/")
 
 		// Parse the json/yaml file
 		templateDescription, err := os.ReadFile(filePathTemplate)
@@ -47,7 +47,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Retrieve the jobName for further usages
-		jobName, err := RetrieveJobName(templateDescription, *cd.Flags.FlagYAML)
+		jobName, err := RetrieveJobName(templateDescription, *cd.Configuration.YAML)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve the job name: %w", err)
 		}
@@ -59,7 +59,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// If template file is YAML convert it to JSON
-		if *cd.Flags.FlagYAML {
+		if *cd.Configuration.YAML {
 			// Unmarshal the data in a map
 			var body interface{}
 			err := yaml.Unmarshal(jobDesc, &body)
@@ -75,7 +75,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Kick off the generated Job
-		startResp, err := transport.Start(context.Background(), *cd.Flags.FlagRequestor, string(jobDesc))
+		startResp, err := transport.Start(context.Background(), *cd.Configuration.Requestor, string(jobDesc))
 		// If the server is not reachable
 		if err != nil {
 			return nil, fmt.Errorf("could not send the Job to the server: %w", err)
@@ -111,7 +111,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Add the job to the Api DB
-		addr := strings.Join([]string{*cd.Flags.FlagAddr, *cd.Flags.FlagPortAPI, "/addjobstatus/"}, "")
+		addr := strings.Join([]string{*cd.Configuration.Addr, *cd.Configuration.PortAPI, "/addjobstatus/"}, "")
 		resp, err := http.Post(addr, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {
 			return nil, fmt.Errorf("could not post data to API: %w", err)
