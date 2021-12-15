@@ -1,4 +1,4 @@
-package clientapi
+package slackIntegration
 
 import (
 	"bytes"
@@ -13,11 +13,12 @@ type RequestBody struct {
 	Message string `json:"text"`
 }
 
-type SlackAPI struct {
+type SlackConfiguration struct {
+	WebhookUrl string
 }
 
 // MsgToSlack will post a message to a slack webhook. It receives a message and post it.
-func (s SlackAPI) MsgToSlack(msg string) error {
+func (s SlackConfiguration) MsgToSlack(msg string) error {
 	// Getting env variable SLACK_WEBHOOK_URL
 	webhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	githubIntegration "github.com/9elements/contest-client/pkg/integrations/github"
+	slackIntegration "github.com/9elements/contest-client/pkg/integrations/slack"
 	"github.com/google/go-github/github"
 )
 
@@ -16,7 +18,9 @@ type WebhookData struct {
 }
 
 type Webhook struct {
-	Data chan WebhookData
+	Data                chan WebhookData
+	GithubConfiguration githubIntegration.GithubConfiguration
+	SlackConfiguration  slackIntegration.SlackConfiguration
 }
 
 func (w *Webhook) NewListener() {

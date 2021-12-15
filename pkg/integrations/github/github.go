@@ -1,4 +1,4 @@
-package clientapi
+package githubIntegration
 
 import (
 	"context"
@@ -11,10 +11,12 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type GithubAPI struct {
+type GithubConfiguration struct {
+	Token  string
+	Secret string
 }
 
-func (g GithubAPI) EditGithubStatus(ctx context.Context, state string, targeturl string, description string, sha string) error {
+func (g GithubConfiguration) EditGithubStatus(ctx context.Context, state string, targeturl string, description string, sha string) error {
 	// Getting env variable GH_TOKEN
 	githubToken := os.Getenv("GITHUB_TOKEN")
 

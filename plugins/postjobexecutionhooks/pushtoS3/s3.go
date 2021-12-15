@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/9elements/contest-client/pkg/client"
-	"github.com/9elements/contest-client/pkg/clientapi"
+	githubIntegration "github.com/9elements/contest-client/pkg/integrations/github"
+	slackIntegration "github.com/9elements/contest-client/pkg/integrations/slack"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -78,20 +80,33 @@ func PushReportsToS3(ctx context.Context, cd client.ClientDescriptor,
 		regex := "https://" + parameter.S3Bucket + `[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 		r, _ := regexp.Compile(regex)
 		binaryURL := r.FindString(respBodyBytes.String())
+
+		// TODO: Clean this mess up
+		// I think we need a Job Struct contain all these information
+
+		var githubConfiguraiton = githubIntegration.GithubConfiguration{
+			Token:  os.Getenv("GITHUB_TOKEN"),
+			Secret: os.Getenv("GITHUB_SECRET"),
+		}
+
+		var slackConfiguration = slackIntegration.SlackConfiguration{
+			WebhookUrl: os.Getenv("SLACK_WEBHOOK_URL"),
+		}
+
 		if binaryURL != "" {
 			// Update the Github status
-			err = UpdateGithubStatus(ctx, jobSuccess, binaryURL, binaryDesc, runData)
+			err = UpdateGithubStatus(ctx, jobSuccess, binaryURL, binaryDesc, runData, githubConfiguraiton)
 			if err != nil {
 				return err
 			}
 		}
 
 		// Update the Github status
-		err = UpdateGithubStatus(ctx, jobSuccess, reportURL, reportDesc, runData)
+		err = UpdateGithubStatus(ctx, jobSuccess, reportURL, reportDesc, runData, githubConfiguraiton)
 		if err != nil {
 			return err
 		}
-		err = SendSlackMsg(jobSuccess, runData)
+		err = SendSlackMsg(jobSuccess, runData, slackConfiguration)
 		if err != nil {
 			return err
 		}
@@ -203,14 +218,12 @@ func CheckJobSuccess(jobStatus [][]*job.Report) bool {
 
 // UpdateGithubStatus updates different Github statuses depending on the success of the job
 func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, statusDesc string,
-	runData client.RunData) error {
-
-	var Github = clientapi.GithubAPI{}
+	runData client.RunData, githubConfiguration githubIntegration.GithubConfiguration) error {
 
 	// If the job was successful
 	if !jobSuccess {
 		// Update the github status
-		err := Github.EditGithubStatus(ctx, "error", dataURL, statusDesc, runData.JobSHA)
+		err := githubConfiguration.EditGithubStatus(ctx, "error", dataURL, statusDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'error': %w", err)
 		}
@@ -218,7 +231,7 @@ func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, st
 		// If the job errors
 	} else {
 		// Update the github status
-		err := Github.EditGithubStatus(ctx, "success", dataURL, statusDesc, runData.JobSHA)
+		err := githubConfiguration.EditGithubStatus(ctx, "success", dataURL, statusDesc, runData.JobSHA)
 		if err != nil {
 			return fmt.Errorf("githubStatus could not be edited to status 'success': %w", err)
 		}
@@ -227,15 +240,13 @@ func UpdateGithubStatus(ctx context.Context, jobSuccess bool, dataURL string, st
 }
 
 // SendSlackMsg sends a msg to slack depending on the success of the job
-func SendSlackMsg(jobSuccess bool, runData client.RunData) error {
-
-	var Slack = clientapi.SlackAPI{}
+func SendSlackMsg(jobSuccess bool, runData client.RunData, slackConfiguration slackIntegration.SlackConfiguration) error {
 
 	// If the job was successful
 	if !jobSuccess {
 		// Create a slack msg and than post it
 		msg := strings.Join([]string{"Something goes wrong in the test with the jobName '", runData.JobName, "' and the jobID '", strconv.Itoa(runData.JobID), "'. Commit: '", runData.JobSHA, "'."}, "")
-		err := Slack.MsgToSlack(msg)
+		err := slackConfiguration.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("error could not posted to slack: %w", err)
 		}
@@ -244,7 +255,7 @@ func SendSlackMsg(jobSuccess bool, runData client.RunData) error {
 	} else {
 		// Create a slack msg and than post it
 		msg := strings.Join([]string{"The test with the jobName '", runData.JobName, "' and the jobID '", strconv.Itoa(runData.JobID), "' was successful. Commit: '", runData.JobSHA, "'."}, "")
-		err := Slack.MsgToSlack(msg)
+		err := slackConfiguration.MsgToSlack(msg)
 		if err != nil {
 			return fmt.Errorf("success could not posted to slack: %w", err)
 		}

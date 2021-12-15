@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/9elements/contest-client/pkg/client"
-	"github.com/9elements/contest-client/pkg/clientapi"
 	"github.com/9elements/contest-client/pkg/webhook"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/icza/dyno"
@@ -29,7 +28,7 @@ type templatedata struct {
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData webhook.WebhookData) ([]client.RunData, error) {
+	webhookData webhook.WebhookData, listener webhook.Webhook) ([]client.RunData, error) {
 
 	// Declare a jobs []struct that contains the rundata that shall be passed
 	var jobs []client.RunData
@@ -90,8 +89,7 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Updating the github status to pending after the job is kicked off
-		Github := clientapi.GithubAPI{}
-		err = Github.EditGithubStatus(ctx, "pending", "http://www.urltotestreport.de/", jobName+". Test-Report:", webhookData.HeadSHA)
+		err = listener.GithubConfiguration.EditGithubStatus(ctx, "pending", "http://www.urltotestreport.de/", jobName+". Test-Report:", webhookData.HeadSHA)
 		if err != nil {
 			return nil, fmt.Errorf("could not change the github status: %w", err)
 		}
