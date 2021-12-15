@@ -23,11 +23,14 @@ type startCmd struct {
 
 var cli struct {
 	Debug   bool       `help:"Enable debug mode."`
-	Start   startCmd   `cmd help: Start the listener`
+	Start   startCmd   `cmd help:"Starts the listener"`
 	Version versionCmd `cmd help:"Prints the version of the program"`
 }
 
+var GitCommit string
+
 func (v *versionCmd) Run() error {
+	fmt.Printf("Git Commit:\t%s\n", GitCommit)
 	return nil
 }
 

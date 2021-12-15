@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - go build -ldflags "-X main.GitCommit=$GITCOMMIT" ./cmd/github-cli/.
+    env:
+      GITCOMMIT: $(git rev-list -1 HEAD)
+
+  clean:
+    cmds:
+      - rm -rf github-cli
