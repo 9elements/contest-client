@@ -1,4 +1,4 @@
-package contestcli
+package webhook
 
 import (
 	"fmt"
@@ -10,27 +10,30 @@ import (
 )
 
 type WebhookData struct {
-	headSHA string
-	sshURL  string
-	refSHA  string
-}
-type Channel struct {
-	webhookdata chan WebhookData
+	HeadSHA string
+	SshURL  string
+	RefSHA  string
 }
 
-func webhook(webhookData chan WebhookData) {
-	// Start webhook listener
-	channel := &Channel{webhookdata: webhookData}
+type Webhook struct {
+	Data chan WebhookData
+}
+
+func (w *Webhook) NewListener() {
+	w.Data = make(chan WebhookData, 10)
+}
+
+func (w *Webhook) Start() error {
 	log.Println("webhook listener is running and running")
-	http.HandleFunc("/", channel.handleWebhook)
+	http.HandleFunc("/", w.handleWebData)
 	err := http.ListenAndServeTLS("0.0.0.0:6000", "/certs/fullchain.crt", "/certs/server.key", nil)
 	if err != nil {
-		log.Printf("error listening to the webhook, err: %s\n", err)
+		return fmt.Errorf("error listening to the webhook, err: %v", err)
 	}
+	return nil
 }
 
-// HandleWebhook handles incoming webhooks
-func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
+func (w *Webhook) handleWebData(rw http.ResponseWriter, r *http.Request) {
 	//retrieve the github_secret for the webhook from .env
 	github_secret := os.Getenv("GITHUB_SECRET")
 	// Receiving and validating the incoming webhook
@@ -57,17 +60,17 @@ func (channel *Channel) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("successful received pullrequest event\n")
 		// Assign 1.the HEAD SHA, 2.the SSH link, 3.the Reference SHA and than pass it to the channel
 		var webhookdata WebhookData
-		webhookdata.headSHA = *e.PullRequest.Head.SHA
-		webhookdata.sshURL = *e.PullRequest.Head.Repo.SSHURL
-		webhookdata.refSHA = *e.PullRequest.Head.Ref
-		channel.webhookdata <- webhookdata
+		webhookdata.HeadSHA = *e.PullRequest.Head.SHA
+		webhookdata.SshURL = *e.PullRequest.Head.Repo.SSHURL
+		webhookdata.RefSHA = *e.PullRequest.Head.Ref
+		w.Data <- webhookdata
 	case *github.PushEvent:
 		// Assign 1.the commmit SHA, 2.the SSH link and than pass it to the channel
 		fmt.Printf("successful received push event\n")
 		var webhookdata WebhookData
-		webhookdata.headSHA = *e.After
-		webhookdata.sshURL = *e.Repo.SSHURL
-		channel.webhookdata <- webhookdata
+		webhookdata.HeadSHA = *e.After
+		webhookdata.SshURL = *e.Repo.SSHURL
+		w.Data <- webhookdata
 	default:
 		log.Printf("successful received unknown event %s %s\n", github.WebHookType(r), e)
 		return

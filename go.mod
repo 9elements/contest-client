@@ -3,6 +3,7 @@ module github.com/9elements/contest-client
 go 1.15
 
 require (
+	github.com/alecthomas/kong v0.2.22
 	github.com/aws/aws-sdk-go v1.40.46
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/facebookincubator/contest v0.0.0-20210902090440-784d571a648c
@@ -15,7 +16,6 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/spf13/pflag v1.0.6-0.20200504143853-81378bbcd8a1
 	github.com/xaionaro-go/unsafetools v0.0.0-20210722164218-75ba48cf7b3c // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf // indirect

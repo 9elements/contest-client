@@ -1,4 +1,4 @@
-package contestcli
+package main
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/9elements/contest-client/pkg/client"
 	"github.com/9elements/contest-client/pkg/clientapi"
+	"github.com/9elements/contest-client/pkg/webhook"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/icza/dyno"
 	"gopkg.in/yaml.v2"
@@ -28,7 +29,7 @@ type templatedata struct {
    It creates new jobDescriptors and kicks off new jobs.
    It also sets the github commit status to pending if the job was started */
 func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Transport, stdout io.Writer,
-	webhookData WebhookData) ([]client.RunData, error) {
+	webhookData webhook.WebhookData) ([]client.RunData, error) {
 
 	// Declare a jobs []struct that contains the rundata that shall be passed
 	var jobs []client.RunData
@@ -90,13 +91,13 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 
 		// Updating the github status to pending after the job is kicked off
 		Github := clientapi.GithubAPI{}
-		err = Github.EditGithubStatus(ctx, "pending", "http://www.urltotestreport.de/", jobName+". Test-Report:", webhookData.headSHA)
+		err = Github.EditGithubStatus(ctx, "pending", "http://www.urltotestreport.de/", jobName+". Test-Report:", webhookData.HeadSHA)
 		if err != nil {
 			return nil, fmt.Errorf("could not change the github status: %w", err)
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
-		jobData := client.RunData{JobID: int(startResp.Data.JobID), JobName: jobName, JobSHA: webhookData.headSHA}
+		jobData := client.RunData{JobID: int(startResp.Data.JobID), JobName: jobName, JobSHA: webhookData.HeadSHA}
 		jobs = append(jobs, jobData)
 
 		// Create Json Body for API Request to set a status for the started Job
@@ -125,14 +126,14 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 }
 
 // Parse the jobDescriptor and substitute all template with the webhook data
-func ChangeJobDescriptor(data []byte, webhookData WebhookData) ([]byte, error) {
+func ChangeJobDescriptor(data []byte, webhookData webhook.WebhookData) ([]byte, error) {
 	// Create buffer to pass the adapted data
 	var buf bytes.Buffer
 
 	// Convert data to a string that could be parsed
 	dataString := string(data)
 	// Create the data that should be substitute
-	jobDescData := templatedata{webhookData.headSHA}
+	jobDescData := templatedata{webhookData.HeadSHA}
 	// Parse the file data
 	tmpl, err := template.New("jobDesc").Delims("[[", "]]").Parse(dataString)
 	if err != nil {
