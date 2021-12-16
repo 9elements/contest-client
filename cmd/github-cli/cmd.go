@@ -54,10 +54,13 @@ func (s *startCmd) Run() error {
 
 		// Parse and decode the json configfile
 		configDescription, _ := ioutil.ReadAll(configFile)
+		fmt.Printf("Configuration File: %v\n", configDescription)
 		if err := json.Unmarshal(configDescription, &clientConfig); err != nil {
 			return fmt.Errorf("unable to decode the config file: %w", err)
 		}
 	}
+
+	fmt.Printf("Configuration: %v\n", clientConfig)
 
 	if err := CLIMain(&clientConfig, os.Stdout); err != nil {
 		return err

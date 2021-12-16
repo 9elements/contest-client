@@ -1,0 +1,36 @@
+JobName: test job
+Runs: 3
+RunInterval: 3s
+Tags: [test, csv]
+TestDescriptors:
+    - TargetManagerName: TargetList
+      TargetManagerAcquireParameters:
+        Targets:
+          - ID: "1234"
+            FQDN: "example.org" 
+        MinNumberDevices: 1
+        MaxNumberDevices: 1
+      TargetManagerReleaseParameters:
+      TestFetcherName: literal
+      TestFetcherFetchParameters:
+          TestName: literal test
+          Steps:
+              - name: cmd
+                label: some label
+                parameters:
+                    executable: [echo]
+                    args: ["Title={{ Title .FQDN }}, ToUpper={{ ToUpper .FQDN }}"]
+                    emit_stdout: [true]
+                    emit_stderr: [true]
+              - name: cmd
+                label: Sleep
+                parameters:
+                    executable: [sleep]
+                    args: ["5"]
+                    emit_stdout: [true]
+                    emit_stderr: [true]
+Reporting:
+    RunReporters:
+        - name: TargetSuccess
+          parameters:
+              SuccessExpression: ">80%"

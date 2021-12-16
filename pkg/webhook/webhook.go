@@ -30,7 +30,8 @@ func (w *Webhook) NewListener() {
 func (w *Webhook) Start() error {
 	log.Println("webhook listener is running and running")
 	http.HandleFunc("/", w.handleWebData)
-	err := http.ListenAndServeTLS("0.0.0.0:6000", "/certs/fullchain.crt", "/certs/server.key", nil)
+	err := http.ListenAndServe("localhost:6000", nil)
+	fmt.Printf("Something went wrong. %v\n", err)
 	if err != nil {
 		return fmt.Errorf("error listening to the webhook, err: %v", err)
 	}
@@ -43,7 +44,7 @@ func (w *Webhook) handleWebData(rw http.ResponseWriter, r *http.Request) {
 	// Receiving and validating the incoming webhook
 	payload, err := github.ValidatePayload(r, []byte(github_secret))
 	if err != nil {
-		log.Printf("error reading request body, err: %s\n", err)
+		log.Printf("This error reading request body, err: %s\n", err)
 		return
 	}
 	defer r.Body.Close()

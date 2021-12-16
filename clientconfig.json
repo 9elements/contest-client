@@ -2,15 +2,15 @@
     "Configuration": 
         {
             "Addr": "http://localhost",
-            "PortServer": ":2323",
+            "PortServer": ":8080",
             "PortAPI": ":6001",
-            "Requestor": "",
+            "Requestor": "9elements",
             "Wait": true,
             "YAML": true,
             "S3": false,
             "JobWaitPoll" : 120,
             "LogLevel": "",
-            "JobTemplate": ["coreboot-spr-sp_build-test.yaml", "coreboot-spr-sp_qemu-boot-test.yaml", "coreboot-spr-sp_archercity-crb-boot-test.yaml"]                    
+            "JobTemplate": ["start-literal.yaml"]
         }
 
 }
