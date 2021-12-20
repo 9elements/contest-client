@@ -2,7 +2,7 @@
     "Configuration": 
         {
             "Addr": "http://localhost",
-            "PortServer": ":8080",
+            "PortServer": ":2323",
             "PortAPI": ":6001",
             "Requestor": "9elements",
             "Wait": true,

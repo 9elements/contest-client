@@ -48,7 +48,7 @@ func (g GithubConfiguration) EditGithubStatus(ctx context.Context, state string,
 	// Putting the CreateStatus input together and change the status of the commit
 	input := &github.RepoStatus{State: &state, TargetURL: &targeturl, Context: &description}
 
-	_, _, err = client.Repositories.CreateStatus(ctx, "9elements", "coreboot-spr-sp", sha, input)
+	_, _, err = client.Repositories.CreateStatus(ctx, "walterchris", "gomodtest", sha, input)
 	if err != nil {
 		return fmt.Errorf("could not set status of the commit to %s, err: %s", state, err)
 	}

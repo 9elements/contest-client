@@ -17,7 +17,7 @@ type versionCmd struct {
 type startCmd struct {
 	Config      string   `flag optional name:"config" help:"Path to the JSON config file." type:"path"`
 	Address     string   `flag optional name:"address" help:"Address of the ConTest Server e.g. 'http://localhost'" default:"http://localhost"`
-	Port        string   `flag optional name:"port" help:"ConTest Server Port to post to" default:"8080"`
+	Port        string   `flag optional name:"port" help:"ConTest Server Port to post to" default:"2323"`
 	PortAPI     string   `flag optional name:"portapi" help:"Listening port of the CLI" default:"6001"`
 	Requestor   string   `flag optional name:"requestor" help:"Name of the client as it will show up in the ConTest logs" default:"9e-contestcli"`
 	Wait        bool     `flag optional name:"wait" help:"If wait is set, the CLI polls on the result of the ConTest server until it is finished" default:false`
@@ -61,6 +61,9 @@ func (s *startCmd) Run() error {
 	}
 
 	fmt.Printf("Configuration: %v\n", clientConfig)
+
+	os.Setenv("GITHUB_TOKEN", "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")
+	os.Setenv("GITHUB_SECRET", "whn_nhz2drm8meu5KTA")
 
 	if err := CLIMain(&clientConfig, os.Stdout); err != nil {
 		return err

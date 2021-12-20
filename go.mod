@@ -26,3 +26,5 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+replace github.com/u-root/u-root => github.com/u-root/u-root v0.8.1-0.20211215003300-f0ad26339da3

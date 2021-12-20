@@ -30,7 +30,7 @@ func (w *Webhook) NewListener() {
 func (w *Webhook) Start() error {
 	log.Println("webhook listener is running and running")
 	http.HandleFunc("/", w.handleWebData)
-	err := http.ListenAndServe("localhost:6000", nil)
+	err := http.ListenAndServe("0.0.0.0:6001", nil)
 	fmt.Printf("Something went wrong. %v\n", err)
 	if err != nil {
 		return fmt.Errorf("error listening to the webhook, err: %v", err)
@@ -39,6 +39,7 @@ func (w *Webhook) Start() error {
 }
 
 func (w *Webhook) handleWebData(rw http.ResponseWriter, r *http.Request) {
+	fmt.Println("handleWebData")
 	//retrieve the github_secret for the webhook from .env
 	github_secret := os.Getenv("GITHUB_SECRET")
 	// Receiving and validating the incoming webhook
