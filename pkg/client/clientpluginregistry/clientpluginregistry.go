@@ -22,6 +22,8 @@ type ClientPluginRegistry struct {
 
 	// PostJobExecutionHooks are hooks which gets executed after the job has been processed(!) by the server
 	PostJobExecutionHooks map[string]client.PostJobExecutionHooksFactory
+
+	IntegrationHooks map[string]client.IntegrationHooksFactory
 }
 
 func NewClientPluginRegistry(ctx xcontext.Context) *ClientPluginRegistry {
@@ -30,6 +32,7 @@ func NewClientPluginRegistry(ctx xcontext.Context) *ClientPluginRegistry {
 	}
 	pr.PreJobExecutionHooks = make(map[string]client.PreJobExecutionHooksFactory)
 	pr.PostJobExecutionHooks = make(map[string]client.PostJobExecutionHooksFactory)
+	pr.IntegrationHooks = make(map[string]client.IntegrationHooksFactory)
 
 	return &pr
 }
@@ -94,4 +97,32 @@ func (r *ClientPluginRegistry) NewPostJobExecutionHook(pluginName string) (clien
 	}
 	postJobExecutionHook := postJobExecutionHookFactory()
 	return postJobExecutionHook, nil
+}
+
+func (r *ClientPluginRegistry) RegisterIntegrationHook(pluginName string, pjf client.IntegrationHooksFactory) error {
+	pluginName = strings.ToLower(pluginName)
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.Context.Infof("Registering IntegrationHook %s", pluginName)
+	if _, found := r.IntegrationHooks[pluginName]; found {
+		return fmt.Errorf("IntegrationHook %s already registered", pluginName)
+	}
+	r.IntegrationHooks[pluginName] = pjf
+	return nil
+}
+
+func (r *ClientPluginRegistry) NewIntegrationHook(pluginName string) (client.IntegrationHooks, error) {
+	pluginName = strings.ToLower(pluginName)
+	var (
+		integrationHookFactory client.IntegrationHooksFactory
+		found                  bool
+	)
+	r.lock.RLock()
+	integrationHookFactory, found = r.IntegrationHooks[pluginName]
+	r.lock.RUnlock()
+	if !found {
+		return nil, fmt.Errorf("integrationHook %v is not registered", pluginName)
+	}
+	integrationHook := integrationHookFactory()
+	return integrationHook, nil
 }

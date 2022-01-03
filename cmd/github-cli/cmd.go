@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/9elements/contest-client/pkg/client"
+	"github.com/joho/godotenv"
 )
 
 type versionCmd struct {
@@ -58,12 +59,14 @@ func (s *startCmd) Run() error {
 		if err := json.Unmarshal(configDescription, &clientConfig); err != nil {
 			return fmt.Errorf("unable to decode the config file: %w", err)
 		}
+		fmt.Printf("Configuration: %s\n", configDescription)
 	}
 
-	fmt.Printf("Configuration: %v\n", clientConfig)
-
-	os.Setenv("GITHUB_TOKEN", "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")
-	os.Setenv("GITHUB_SECRET", "whn_nhz2drm8meu5KTA")
+	// Read in environment file
+	err := godotenv.Load()
+	if err != nil {
+		return fmt.Errorf("error loading .env file: %v\n", err)
+	}
 
 	if err := CLIMain(&clientConfig, os.Stdout); err != nil {
 		return err

@@ -6,7 +6,7 @@ import (
 	"github.com/9elements/contest-client/pkg/client/clientpluginregistry"
 	"github.com/facebookincubator/contest/pkg/xcontext"
 
-	"github.com/9elements/contest-client/plugins/postjobexecutionhooks/pushtoS3"
+	"github.com/9elements/contest-client/plugins/integrationhooks/github"
 	noop "github.com/9elements/contest-client/plugins/prejobexecutionhooks/noop"
 )
 
@@ -14,8 +14,10 @@ var PreExecutionHooks = []client.PreJobExecutionHookLoader{
 	noop.Load,
 }
 
-var PostExecutionHooks = []client.PostJobExecutionHookLoader{
-	pushtoS3.Load,
+var PostExecutionHooks = []client.PostJobExecutionHookLoader{}
+
+var IntegrationHooks = []client.IntegrationHookLoader{
+	github.Load,
 }
 
 // Init initializes the client plugin registry
@@ -29,6 +31,13 @@ func Init(clientPluginRegistry *clientpluginregistry.ClientPluginRegistry, log x
 	// Register PostJobExecutionHook plugins
 	for _, postloader := range PostExecutionHooks {
 		if err := clientPluginRegistry.RegisterPostJobExecutionHook(postloader()); err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+	// Register IntegrationHooks plugins
+	for _, integrationloader := range IntegrationHooks {
+		err := clientPluginRegistry.RegisterIntegrationHook(integrationloader())
+		if err != nil {
 			log.Fatalf("%v", err)
 		}
 	}

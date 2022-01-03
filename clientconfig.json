@@ -11,6 +11,12 @@
             "JobWaitPoll" : 120,
             "LogLevel": "",
             "JobTemplate": ["start-literal.yaml"]
+        },
+    "IntegrationHooks": [{
+        "Name" : "github",
+        "Parameters": {
+            "Repository" : "gomodtest",
+            "Organization" : "walterchris"
         }
-
+    }]
 }

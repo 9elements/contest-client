@@ -56,3 +56,26 @@ func (r *ClientPluginRegistry) NewPostJobExecutionHookBundle(ctx xcontext.Contex
 	}
 	return &postHookExecutionBundle, nil
 }
+
+func (r *ClientPluginRegistry) NewIntegrationHookBundle(ctx xcontext.Context, integrationHookDescriptor *client.IntegrationHookDescriptor) (
+	*client.IntegrationHookBundle, error) {
+
+	fmt.Println("NewIntegrationHookBundle")
+	if integrationHookDescriptor == nil {
+		return nil, fmt.Errorf("integration hook description is null")
+	}
+	integrationHook, err := r.NewIntegrationHook(integrationHookDescriptor.Name)
+	if err != nil {
+		return nil, fmt.Errorf("could not get the desired IntegrationHook (%s): %v", integrationHookDescriptor.Name, err)
+	}
+	// FetchParameters
+	fp, err := integrationHook.ValidateParameters(integrationHookDescriptor.Parameters)
+	if err != nil {
+		return nil, fmt.Errorf("could not validate IntegrationHook fetch parameters: %v", err)
+	}
+	integrationHookBundle := client.IntegrationHookBundle{
+		IntegrationHooks: integrationHook,
+		Parameters:       fp,
+	}
+	return &integrationHookBundle, nil
+}

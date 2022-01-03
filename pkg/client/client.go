@@ -5,17 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/facebookincubator/contest/pkg/api"
 	"github.com/facebookincubator/contest/pkg/transport"
 )
 
 // JobExecutionHookFactory is a type representing a function which builds a JobExecutionHook object
 type PreJobExecutionHooksFactory func() PreJobExecutionHooks
 type PostJobExecutionHooksFactory func() PostJobExecutionHooks
+type IntegrationHooksFactory func() IntegrationHooks
 
 // Pre/PostJobExecutionHookLoader is a type representing a function which returns all the
 // needed things to be able to load a Pre/PostJobExecutionHook object
 type PreJobExecutionHookLoader func() (string, PreJobExecutionHooksFactory)
 type PostJobExecutionHookLoader func() (string, PostJobExecutionHooksFactory)
+type IntegrationHookLoader func() (string, IntegrationHooksFactory)
 
 // ClientDescriptor models the deserialized version of the JSON text given as
 // input to the client at start.
@@ -23,6 +26,7 @@ type ClientDescriptor struct {
 	Configuration         Configuration
 	PreJobExecutionHooks  []*PreHookDescriptor
 	PostJobExecutionHooks []*PostHookDescriptor
+	IntegrationHooks      []*IntegrationHookDescriptor
 }
 
 // ExecutionHookParam represents a ExecutionHook parameter. It is initialized from JSON,
@@ -64,6 +68,11 @@ type PostHookDescriptor struct {
 	Parameters json.RawMessage
 }
 
+type IntegrationHookDescriptor struct {
+	Name       string
+	Parameters json.RawMessage
+}
+
 // PreHookExecutionBundle bundles the selected PreExecutionHooks together with its parameters
 type PreHookExecutionBundle struct {
 	PreJobExecutionHooks PreJobExecutionHooks
@@ -76,11 +85,17 @@ type PostHookExecutionBundle struct {
 	Parameters            interface{}
 }
 
+type IntegrationHookBundle struct {
+	IntegrationHooks IntegrationHooks
+	Parameters       interface{}
+}
+
 // RunData cointains data that can be used to hand over data through the program flow
 type RunData struct {
-	JobID   int
-	JobName string
-	JobSHA  string
+	JobID     int
+	JobName   string
+	JobSHA    string
+	JobStatus *api.StatusResponse
 }
 
 // PreValidate performs sanity check on the PreExecutionHookContent
@@ -99,6 +114,13 @@ func (d *PostHookDescriptor) PostValidate() error {
 	return nil
 }
 
+func (d *IntegrationHookDescriptor) PreValidate() error {
+	if d.Name == "" {
+		return errors.New("IntegrationHook name cannot be empty")
+	}
+	return nil
+}
+
 type PreJobExecutionHooks interface {
 	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
 		transport transport.Transport) (interface{}, error)
@@ -108,5 +130,13 @@ type PreJobExecutionHooks interface {
 type PostJobExecutionHooks interface {
 	Run(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor,
 		transport transport.Transport, rundata []RunData) (interface{}, error)
+	ValidateParameters([]byte) (interface{}, error)
+}
+
+type IntegrationHooks interface {
+	Setup(ctx context.Context, parameters interface{}) error
+	BeforeJob(ctx context.Context, parameters interface{}, clientDescriptor ClientDescriptor) error
+	InJobUpdate(ctx context.Context, parameters interface{}) error
+	AfterJob(ctx context.Context, parameters interface{}) error
 	ValidateParameters([]byte) (interface{}, error)
 }

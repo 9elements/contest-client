@@ -7,25 +7,32 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	nethttp "net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/9elements/contest-client/pkg/client"
 	"github.com/9elements/contest-client/pkg/client/clientpluginregistry"
 	"github.com/9elements/contest-client/pkg/webhook"
 	"github.com/9elements/contest-client/plugins/clientplugins"
+	"github.com/facebookincubator/contest/pkg/api"
+	"github.com/facebookincubator/contest/pkg/job"
 	"github.com/facebookincubator/contest/pkg/logging"
 	"github.com/facebookincubator/contest/pkg/transport"
 	"github.com/facebookincubator/contest/pkg/transport/http"
+	"github.com/facebookincubator/contest/pkg/types"
 	"github.com/facebookincubator/contest/pkg/xcontext"
 	"github.com/facebookincubator/contest/pkg/xcontext/bundles/logrusctx"
 	"github.com/icza/dyno"
 	"gopkg.in/yaml.v2"
 )
 
+var bundleIntegrationHooks []*client.IntegrationHookBundle
+
 func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
+
+	// We hard code this here now
 
 	// Create context
 	ctx, cancel := xcontext.WithCancel(logrusctx.NewContext(6, logging.DefaultOptions()...))
@@ -59,11 +66,36 @@ func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
 				return err
 			}
 		}
+
+		for _, eh := range config.IntegrationHooks {
+			err := eh.PreValidate()
+			if err != nil {
+				return err
+			}
+
+			bundleIntegrationHook, err := clientPluginRegistry.NewIntegrationHookBundle(ctx, eh)
+			if err != nil {
+				return err
+			}
+
+			err = bundleIntegrationHook.IntegrationHooks.Setup(ctx, bundleIntegrationHook.Parameters)
+			if err != nil {
+				fmt.Printf("Setup throws an error: %v\n", err)
+			}
+
+			err = bundleIntegrationHook.IntegrationHooks.BeforeJob(ctx, nextWebhookData.HeadSHA, *config)
+			if err != nil {
+				fmt.Printf("BeforeJob throws an error: %v\n", err)
+			}
+
+			bundleIntegrationHooks = append(bundleIntegrationHooks, bundleIntegrationHook)
+		}
+
 		// Run the job and receive the rundata
 		var rundata []client.RunData
 		rundata, err := run(ctx, *config, &http.HTTP{Addr: *config.Configuration.Addr + *config.Configuration.PortServer}, stdout, nextWebhookData, weblistener)
 		if err != nil {
-			fmt.Printf("running the job failed (err: %w) You should probably check the connection and restart the test", err)
+			fmt.Printf("running the job failed (err: %v) You should probably check the connection and restart the test", err)
 			continue
 		}
 		// Iterate over all PostJobExecution plugins
@@ -75,11 +107,19 @@ func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
 			// Register the current plugin
 			bundlePostExecutionHook, err := clientPluginRegistry.NewPostJobExecutionHookBundle(ctx, eh)
 			if err != nil {
+				fmt.Println("Name()")
 				return err
 			}
 			// Run the plugin
 			if _, err := bundlePostExecutionHook.PostJobExecutionHooks.Run(ctx, bundlePostExecutionHook.Parameters, *config, &http.HTTP{Addr: *config.Configuration.Addr + *config.Configuration.PortServer}, rundata); err != nil {
 				return err
+			}
+		}
+
+		for _, bundleIntegrationHook := range bundleIntegrationHooks {
+			err = bundleIntegrationHook.IntegrationHooks.AfterJob(ctx, nextWebhookData)
+			if err != nil {
+				fmt.Printf("AfterJob throw an error: %v\n", err)
 			}
 		}
 	}
@@ -142,8 +182,6 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			}
 		}
 
-		fmt.Printf("Payload to Server:\n%s\n", jobDesc)
-
 		// Kick off the generated Job
 		startResp, err := transport.Start(context.Background(), *cd.Configuration.Requestor, string(jobDesc))
 		// If the server is not reachable
@@ -158,37 +196,32 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 			}
 		}
 
-		// Updating the github status to pending after the job is kicked off
-		err = listener.GithubConfiguration.EditGithubStatus(ctx, "pending", "http://www.urltotestreport.de/", jobName+". Test-Report:", webhookData.HeadSHA)
-		if err != nil {
-			return nil, fmt.Errorf("could not change the github status: %w", err)
-		}
-
 		// Filling the map with job data for postjobexecutionhooks
 		jobData := client.RunData{JobID: int(startResp.Data.JobID), JobName: jobName, JobSHA: webhookData.HeadSHA}
+
+		// Now wait for the results if desired
+		if *cd.Configuration.Wait {
+			// print immediately if wait is used
+			buffer := &bytes.Buffer{}
+			encoder := json.NewEncoder(buffer)
+			encoder.SetEscapeHTML(false)
+			encoder.SetIndent("", " ")
+			err = encoder.Encode(startResp)
+			if err != nil {
+				return nil, fmt.Errorf("cannot re-encode api.Respose object: %v", err)
+			}
+			indentedJSON := buffer.String()
+			fmt.Fprintf(stdout, "%s", string(indentedJSON))
+
+			fmt.Fprintf(os.Stderr, "\nWaiting for job to complete...\n")
+			jobData.JobStatus, err = wait(context.Background(), startResp.Data.JobID, time.Second*time.Duration(*cd.Configuration.JobWaitPoll), *cd.Configuration.Requestor, transport)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		jobs = append(jobs, jobData)
 
-		// Create Json Body for API Request to set a status for the started Job
-		data := map[string]interface{}{
-			"ID":     startResp.Data.JobID,
-			"Status": false,
-		}
-
-		// Marshal that data
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse data to json format: %w", err)
-		}
-
-		// Add the job to the Api DB
-		addr := strings.Join([]string{*cd.Configuration.Addr, *cd.Configuration.PortAPI, "/addjobstatus/"}, "")
-		resp, err := nethttp.Post(addr, "application/json", bytes.NewBuffer(jsonData))
-		if err != nil {
-			return nil, fmt.Errorf("could not post data to API: %w", err)
-		}
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("the HTTP Post responded a statuscode != 200 %w", err)
-		}
 	}
 	return jobs, nil
 }
@@ -238,4 +271,27 @@ func RetrieveJobName(data []byte, YAML bool) (string, error) {
 	jobName := jobDesc["JobName"]
 	// Return the jobName
 	return jobName.(string), nil
+}
+
+func wait(ctx context.Context, jobID types.JobID, jobWaitPoll time.Duration, requestor string, transport transport.Transport) (*api.StatusResponse, error) {
+	// keep polling for status till job is completed, used when -wait is set
+	for {
+		resp, err := transport.Status(context.Background(), requestor, jobID)
+		if err != nil {
+			return nil, err
+		}
+		if resp.Err != nil {
+			return nil, fmt.Errorf("server responded with an error: %s", resp.Err)
+		}
+
+		jobState := resp.Data.Status.State
+
+		for _, eventName := range job.JobCompletionEvents {
+			if string(jobState) == string(eventName) {
+				return resp, nil
+			}
+		}
+		// TODO use  time.Ticker instead of time.Sleep
+		time.Sleep(jobWaitPoll)
+	}
 }
