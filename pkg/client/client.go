@@ -92,10 +92,11 @@ type IntegrationHookBundle struct {
 
 // RunData cointains data that can be used to hand over data through the program flow
 type RunData struct {
-	JobID     int
-	JobName   string
-	JobSHA    string
-	JobStatus *api.StatusResponse
+	JobID      int
+	JobContext string
+	JobName    string
+	JobSHA     string
+	JobStatus  *api.StatusResponse
 }
 
 // PreValidate performs sanity check on the PreExecutionHookContent

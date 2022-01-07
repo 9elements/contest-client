@@ -117,7 +117,7 @@ func CLIMain(config *client.ClientDescriptor, stdout io.Writer) error {
 		}
 
 		for _, bundleIntegrationHook := range bundleIntegrationHooks {
-			err = bundleIntegrationHook.IntegrationHooks.AfterJob(ctx, nextWebhookData)
+			err = bundleIntegrationHook.IntegrationHooks.AfterJob(ctx, rundata)
 			if err != nil {
 				fmt.Printf("AfterJob throw an error: %v\n", err)
 			}
@@ -197,7 +197,11 @@ func run(ctx context.Context, cd client.ClientDescriptor, transport transport.Tr
 		}
 
 		// Filling the map with job data for postjobexecutionhooks
-		jobData := client.RunData{JobID: int(startResp.Data.JobID), JobName: jobName, JobSHA: webhookData.HeadSHA}
+		jobData := client.RunData{
+			JobID:      int(startResp.Data.JobID),
+			JobContext: *cd.Configuration.JobTemplate[i],
+			JobName:    jobName,
+			JobSHA:     webhookData.HeadSHA}
 
 		// Now wait for the results if desired
 		if *cd.Configuration.Wait {

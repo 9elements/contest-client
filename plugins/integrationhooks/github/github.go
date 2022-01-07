@@ -111,6 +111,9 @@ func (g *Github) InJobUpdate(ctx context.Context, parameters interface{}) error 
 
 func (g *Github) AfterJob(ctx context.Context, parameters interface{}) error {
 	// We need to update the Github Status here to fail/success
+	var data client.RunData
+
+	runData := parameters.([]client.RunData)
 
 	// Setting up the github authentication
 	ts := oauth2.StaticTokenSource(
@@ -128,8 +131,35 @@ func (g *Github) AfterJob(ctx context.Context, parameters interface{}) error {
 	fmt.Printf("We have %d github statuses right now\n", len(g.GithubStatuses))
 	for _, githubstatus := range g.GithubStatuses {
 
-		// TODO: Blindly set the status to success for now.
-		githubstatus.state = "success"
+		// Search correct runData
+		for _, entry := range runData {
+			jobcontest := fmt.Sprintf("ConTest: %s", entry.JobContext) // This needs to be in sync with the upper context
+			if githubstatus.context == jobcontest {
+				data = entry
+			}
+		}
+
+		if data.JobID == 0 {
+			// We have not found the data. Error.
+			return fmt.Errorf("Matching entry not found.")
+		}
+
+		JobStatus := *data.JobStatus.Data.Status
+		githubstatus.state = "failure"
+
+		if JobStatus.State == "JobStateCompleted" {
+
+			githubstatus.description = data.JobStatus.Data.Status.StateErrMsg
+
+			success := true
+			for _, reports := range JobStatus.JobReport.RunReports[0] {
+				success = success && reports.Success
+			}
+
+			if success {
+				githubstatus.state = "success"
+			}
+		}
 
 		// Putting the CreateStatus input together and change the status of the commit
 		input := &github.RepoStatus{State: &githubstatus.state, Context: &githubstatus.context, Description: &githubstatus.description, TargetURL: &githubstatus.targetURL}
